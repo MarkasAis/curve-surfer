@@ -60,7 +60,6 @@ function update(deltaTime) {
                 else newPoint = s.addPointLast(mousePos);
                 
                 setSelectedAnchor(newPoint);
-                // setActiveAnchor(newPoint);
             } else {
                 setSelectedAnchor(null);
             }
@@ -71,15 +70,9 @@ function update(deltaTime) {
             if (dragObject instanceof ControlPoint)
             setSelectedAnchor(dragObject);
 
-            // setSelectedAnchor(null);
-            // setActiveAnchor(null);
-
             dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
         } else {
-
-            // else {
-                setSelectedAnchor(null);
-            // }
+            setSelectedAnchor(null);
         }
     }
 
@@ -88,25 +81,12 @@ function update(deltaTime) {
 
         if (!isDragging && Vec2.squareDistance(dragStart, mousePos) > DRAG_THRESHOLD*DRAG_THRESHOLD) {
             isDragging = true;
-            // setSelectedAnchor(dragObject);
         }
 
         dragObject.setPosition(Vec2.add(mousePos, dragOffset));
     }
 
     if (Input.getMouseButtonUpThisFrame(Input.MouseButton.LEFT)) {
-        // if (dragObject && !isDragging) {
-        //     if (dragObject instanceof ControlPoint) {
-        //         if (dragObject.isFirst || dragObject.isLast) {
-        //             // setActiveAnchor(dragObject);
-        //         }
-        //     }
-
-        //     // setSelectedAnchor(dragObject);
-        // }
-
-        
-        
         dragObject = null;
         isDragging = false;
     }

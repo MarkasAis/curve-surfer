@@ -95,6 +95,9 @@ class Spline {
 
         if (this.#points.length > 0) {
             CTX.beginPath();
+            CTX.strokeStyle = '#FDFFFC';
+            CTX.lineWidth = 2;
+
             const start = this.#points[0]._position;
             CTX.moveTo(start.x, start.y);
 
@@ -106,8 +109,6 @@ class Spline {
 
             const end = this.isClosed ? start : this.#points[this.#points.length-1]._position;
             CTX.lineTo(end.x, end.y);
-            CTX.strokeStyle = '#FDFFFC';
-            CTX.lineWidth = 1;
             CTX.stroke();
 
             for (let p of this.#points)
@@ -153,7 +154,6 @@ class ControlPoint extends Circle {
         
         this.isFirst = false;
         this.isLast = false;
-        this.isActive = false;
         this.showHandles = false;
     }
 
@@ -185,19 +185,17 @@ class ControlPoint extends Circle {
 
     render() {
         CTX.beginPath();
+        CTX.strokeStyle = '#f71735';
+        CTX.lineWidth = 3;
         CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
         CTX.fillStyle = '#FDFFFC';
         CTX.fill();
 
-        if (this.isActive) {
-            CTX.strokeStyle = '#ff9f1c';
-            CTX.lineWidth = 3;
-            CTX.stroke(); 
-        }
+        if (this.showHandles) CTX.stroke(); 
 
         if (this.showHandles) {
-            if (!this.isFirst) this.handlePrev.render();
-            if (!this.isLast) this.handleNext.render();
+            if (!this.isFirst) this.handlePrev.render(true);
+            if (!this.isLast) this.handleNext.render(true); 
         }
     }
 }
@@ -213,14 +211,15 @@ class Handle extends Circle {
         this.control.onHandleMove(this);
     }
 
-    render() {
+    render(highlight) {
         CTX.beginPath();
+        CTX.strokeStyle = highlight ? '#f71735' : '#FDFFFC';
+        CTX.lineWidth = 2;
         CTX.arc(this._position.x, this._position.y, this.radius*0.5, 0, Math.PI * 2);
-        CTX.strokeStyle = '#FDFFFC';
-        CTX.lineWidth = 1;
         CTX.stroke();
 
         CTX.beginPath();
+        CTX.lineWidth = 1;
         CTX.moveTo(this._position.x, this._position.y);
         CTX.lineTo(this.control._position.x, this.control._position.y);
         CTX.stroke();

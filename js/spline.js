@@ -3,6 +3,7 @@ class Spline {
 
     constructor(pos) {
         this.#points = [];
+        this.isClosed = false;
     }
 
     addPointFirst(pos) {
@@ -11,9 +12,10 @@ class Spline {
         let nextPoint = this.#points[0];
         nextPoint.isFirst = false;
 
-        let dir = Vec2.sub(pos, nextPoint._position).normalized;
+        let handleDir = Vec2.sub(pos, nextPoint._position).normalized;
+        let handleDist = Vec2.dist(pos, nextPoint._position) * 0.5;
 
-        let newPoint = new ControlPoint(pos, dir);
+        let newPoint = new ControlPoint(pos, handleDir, handleDist);
         newPoint.isFirst = true;
 
         this.#points.unshift(newPoint);
@@ -37,18 +39,27 @@ class Spline {
         let prevPoint = this.#points[this.#points.length-1];
         prevPoint.isLast = false;
 
-        let dir = Vec2.sub(prevPoint._position, pos).normalized;
+        let handleDir = Vec2.sub(prevPoint._position, pos).normalized;
+        let handleDist = Vec2.dist(pos, prevPoint._position) * 0.5;
 
-        let newPoint = new ControlPoint(pos, dir);
+        let newPoint = new ControlPoint(pos, handleDir, handleDist);
         newPoint.isLast = true;
 
         this.#points.push(newPoint);
         return newPoint;
     }
 
+    close() {
+        this.isClosed = true;
+        if (this.#points.length > 0) {
+            this.#points[0].isFirst = false;
+            this.#points[this.#points.length-1].isLast = false;
+        }
+    }
+
     positionAt(t) {
         let fromIndex = Math.trunc(t);
-        let toIndex = fromIndex + 1;
+        let toIndex = (fromIndex + 1) % this.#points.length;
 
         let p = t % 1;
         
@@ -78,6 +89,7 @@ class Spline {
     render(deltaTime) {
         const ITERATIONS_PER_SEGMENT = 30;
         let segmentCount = this.#points.length - 1;
+        if (this.isClosed) segmentCount++;
         let iterations = ITERATIONS_PER_SEGMENT * segmentCount;
 
 
@@ -92,7 +104,7 @@ class Spline {
                 CTX.lineTo(pos.x, pos.y);
             }
 
-            const end = this.#points[this.#points.length-1]._position;
+            const end = this.isClosed ? start : this.#points[this.#points.length-1]._position;
             CTX.lineTo(end.x, end.y);
             CTX.strokeStyle = '#FDFFFC';
             CTX.lineWidth = 1;
@@ -129,12 +141,12 @@ class Circle {
 }
 
 class ControlPoint extends Circle {
-    constructor(pos, handleDir=Vec2.left) {
+    constructor(pos, handleDir=Vec2.right, handleDist=100) {
         super(pos, 10);
 
         
-        let handlePrevPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, 100));
-        let handleNextPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, -100));
+        let handlePrevPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, handleDist));
+        let handleNextPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, -handleDist));
 
         this.handlePrev = new Handle(this, handlePrevPos);
         this.handleNext = new Handle(this, handleNextPos);

@@ -13,8 +13,8 @@ let selectedAnchor = null;
 
 let s = new Spline();
 // s.addPointLast(new Vec2(100, 100));
-s.addPointLast(new Vec2(300, 100));
-s.addPointLast(new Vec2(300, 300));
+s.addPointLast(new Vec2(CANVAS.width*0.5, CANVAS.height*0.5));
+// s.addPointLast(new Vec2(300, 300));
 // s.addPoint(new Vec2(600, 300));
 
 CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
@@ -46,7 +46,28 @@ function update(deltaTime) {
 
         dragObject = s.select(mousePos);
 
-        if (dragObject) {
+        if (selectedAnchor && Input.getKeyDown('Control')) {
+
+            if (dragObject) {
+                if (selectedAnchor.isFirst && dragObject.isLast || selectedAnchor.isLast && dragObject.isFirst) {
+                    s.close();
+                    setSelectedAnchor(dragObject);
+                    dragObject = null;
+                }
+            } else if (selectedAnchor.isFirst || selectedAnchor.isLast) {
+                let newPoint = null;
+                if (selectedAnchor.isFirst) newPoint = s.addPointFirst(mousePos);
+                else newPoint = s.addPointLast(mousePos);
+                
+                setSelectedAnchor(newPoint);
+                // setActiveAnchor(newPoint);
+            } else {
+                setSelectedAnchor(null);
+            }
+
+        }
+
+        else if (dragObject) {
             if (dragObject instanceof ControlPoint)
             setSelectedAnchor(dragObject);
 
@@ -56,22 +77,9 @@ function update(deltaTime) {
             dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
         } else {
 
-            if (Input.getKeyDown('Control')) {
-
-                if (selectedAnchor && (selectedAnchor.isFirst || selectedAnchor.isLast)) {
-                    let newPoint = null;
-                    if (selectedAnchor.isFirst) newPoint = s.addPointFirst(mousePos);
-                    else newPoint = s.addPointLast(mousePos);
-                    
-                    setSelectedAnchor(newPoint);
-                    // setActiveAnchor(newPoint);
-                } else {
-                    setSelectedAnchor(null);
-                }
-
-            } else {
+            // else {
                 setSelectedAnchor(null);
-            }
+            // }
         }
     }
 

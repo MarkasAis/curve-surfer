@@ -6,28 +6,41 @@ class Spline {
     }
 
     addPointFirst(pos) {
-        let newPoint = new ControlPoint(pos);
-        newPoint.isFirst = true;
+        if (this.#points.length == 0) return this.#addPointEmpty(pos);
 
-        if (this.#points.length > 0) {
-            this.#points[0].isFirst = false;
-        } else {
-            newPoint.isLast = true;
-        }
+        let nextPoint = this.#points[0];
+        nextPoint.isFirst = false;
+
+        let dir = Vec2.sub(pos, nextPoint._position).normalized;
+
+        let newPoint = new ControlPoint(pos, dir);
+        newPoint.isFirst = true;
 
         this.#points.unshift(newPoint);
         return newPoint;
     }
 
-    addPointLast(pos) {
+    #addPointEmpty(pos) {
+        if (this.#points.length > 0) return null;
+
         let newPoint = new ControlPoint(pos);
+        newPoint.isFirst = true;
         newPoint.isLast = true;
 
-        if (this.#points.length > 0) {
-            this.#points[this.#points.length-1].isLast = false;
-        } else {
-            newPoint.isFirst = true;
-        }
+        this.#points.push(newPoint);
+        return newPoint;
+    }
+
+    addPointLast(pos) {
+        if (this.#points.length == 0) return this.#addPointEmpty(pos);
+
+        let prevPoint = this.#points[this.#points.length-1];
+        prevPoint.isLast = false;
+
+        let dir = Vec2.sub(prevPoint._position, pos).normalized;
+
+        let newPoint = new ControlPoint(pos, dir);
+        newPoint.isLast = true;
 
         this.#points.push(newPoint);
         return newPoint;
@@ -116,10 +129,16 @@ class Circle {
 }
 
 class ControlPoint extends Circle {
-    constructor(pos) {
+    constructor(pos, handleDir=Vec2.left) {
         super(pos, 10);
-        this.handlePrev = new Handle(this, Vec2.add(this._position, Vec2.left.mult(100)));
-        this.handleNext = new Handle(this, Vec2.add(this._position, Vec2.right.mult(100)));
+
+        
+        let handlePrevPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, 100));
+        let handleNextPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, -100));
+
+        this.handlePrev = new Handle(this, handlePrevPos);
+        this.handleNext = new Handle(this, handleNextPos);
+        
         this.isFirst = false;
         this.isLast = false;
         this.isActive = false;

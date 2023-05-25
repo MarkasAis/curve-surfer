@@ -1,0 +1,11 @@
+body {
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    background-color: #00111e;
+}
+
+canvas {
+    box-shadow: #00000038 0 0 40px;
+    margin: auto;
+}

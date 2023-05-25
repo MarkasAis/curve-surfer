@@ -1,13 +1,15 @@
 const CANVAS = document.querySelector('#canvas');
 const CTX = CANVAS.getContext('2d');
 
-const DRAG_THRESHOLD = 5;
+const DRAG_THRESHOLD = 3;
 
-let pos = {x: 0, y: 0};
-let selected = null;
-let selectOffset;
+let isDragging;
 let dragStart;
-let activeAnchor = null;
+let dragOffset;
+let dragObject = null;
+
+let selectedAnchor = null;
+// let activeAnchor = null;
 
 let s = new Spline();
 // s.addPointLast(new Vec2(100, 100));
@@ -19,76 +21,101 @@ CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
 
 Input.init();
 
+// function setActiveAnchor(anchor) {
+//     if (activeAnchor) activeAnchor.isActive = false;
+//     activeAnchor = anchor;
+//     if (activeAnchor) activeAnchor.isActive = true;
+// } 
+
+function setSelectedAnchor(anchor) {
+    if (selectedAnchor) selectedAnchor.showHandles = false;
+    selectedAnchor = anchor;
+    if (selectedAnchor) selectedAnchor.showHandles = true;
+}
+
+
+
 function update(deltaTime) {
     Input.update();
 
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.LEFT)) {
         let mousePos = Input.getMousePos(CANVAS);
+
         dragStart = mousePos;
+        isDragging = false;
 
-        selected = s.select(mousePos);
-        if (selected) {
-            selectOffset = Vec2.sub(selected.position, mousePos);
+        dragObject = s.select(mousePos);
 
-            if (activeAnchor) {
-                activeAnchor.isSelected = false;
-                activeAnchor = null;
-            }
+        if (dragObject) {
+            if (dragObject instanceof ControlPoint)
+            setSelectedAnchor(dragObject);
 
-            if (selected instanceof ControlPoint) {
-                activeAnchor = selected;
-                activeAnchor.isSelected = true;
-            }
+            // setSelectedAnchor(null);
+            // setActiveAnchor(null);
 
+            dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
         } else {
-            if (activeAnchor && activeAnchor.isLast) {
-                activeAnchor.isSelected = false;
-                activeAnchor = s.addPointLast(mousePos);
-                activeAnchor.isSelected = true;
+
+            if (Input.getKeyDown('Control')) {
+
+                if (selectedAnchor && (selectedAnchor.isFirst || selectedAnchor.isLast)) {
+                    let newPoint = null;
+                    if (selectedAnchor.isFirst) newPoint = s.addPointFirst(mousePos);
+                    else newPoint = s.addPointLast(mousePos);
+                    
+                    setSelectedAnchor(newPoint);
+                    // setActiveAnchor(newPoint);
+                } else {
+                    setSelectedAnchor(null);
+                }
+
+            } else {
+                setSelectedAnchor(null);
             }
         }
-
-
-        
-        
-
-        
     }
 
-    
-
-    if (selected) {
+    if (dragObject) {
         let mousePos = Input.getMousePos(CANVAS);
-        if (Vec2.squareDistance(dragStart, mousePos) > DRAG_THRESHOLD*DRAG_THRESHOLD) {
-            if (activeAnchor) {
-                activeAnchor.isSelected = false;
-                activeAnchor = false;
-            }
+
+        if (!isDragging && Vec2.squareDistance(dragStart, mousePos) > DRAG_THRESHOLD*DRAG_THRESHOLD) {
+            isDragging = true;
+            // setSelectedAnchor(dragObject);
         }
 
-        selected.position = Vec2.add(mousePos, selectOffset);
+        dragObject.setPosition(Vec2.add(mousePos, dragOffset));
     }
 
     if (Input.getMouseButtonUpThisFrame(Input.MouseButton.LEFT)) {
-        if (selected) {
-            selected = null;
-        }
+        // if (dragObject && !isDragging) {
+        //     if (dragObject instanceof ControlPoint) {
+        //         if (dragObject.isFirst || dragObject.isLast) {
+        //             // setActiveAnchor(dragObject);
+        //         }
+        //     }
+
+        //     // setSelectedAnchor(dragObject);
+        // }
+
+        
+        
+        dragObject = null;
+        isDragging = false;
     }
 
-    if (Input.getMouseButtonUpThisFrame(Input.MouseButton.RIGHT)) {
-        if (activeAnchor) {
-            activeAnchor.isSelected = false;
-            activeAnchor = null;
-        }
-    }
+    // if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
+    //     setSelectedAnchor(null);
+    //     // setActiveAnchor(null);
+    // }
 }
 
 function render(deltaTime) {
-    CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
+    CTX.fillStyle = '#011627';
+    CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
     s.render(deltaTime);
 }
 
-const UPDATES_PER_SECOND = 30;
+const UPDATES_PER_SECOND = 60;
 const PAUSE_THRESHOLD = 1;
 let secondsPerUpdate = 1 / UPDATES_PER_SECOND;
 let lastTime = null;
@@ -98,7 +125,11 @@ function gameLoop(time) {
     const deltaTime = lastTime ? (time - lastTime) / 1000 : 0;
     lastTime = time;
 
-    if (deltaTime >= PAUSE_THRESHOLD) return;
+    if (deltaTime >= PAUSE_THRESHOLD) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     accumulator += deltaTime;
 
     while (accumulator >= secondsPerUpdate) {

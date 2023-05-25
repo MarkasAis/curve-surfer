@@ -5,6 +5,20 @@ class Spline {
         this.#points = [];
     }
 
+    addPointFirst(pos) {
+        let newPoint = new ControlPoint(pos);
+        newPoint.isFirst = true;
+
+        if (this.#points.length > 0) {
+            this.#points[0].isFirst = false;
+        } else {
+            newPoint.isLast = true;
+        }
+
+        this.#points.unshift(newPoint);
+        return newPoint;
+    }
+
     addPointLast(pos) {
         let newPoint = new ControlPoint(pos);
         newPoint.isLast = true;
@@ -25,10 +39,10 @@ class Spline {
 
         let p = t % 1;
         
-        let p0 = this.#points[fromIndex].position;
-        let p1 = this.#points[fromIndex].handleNext.position;
-        let p2 = this.#points[toIndex].handlePrev.position;
-        let p3 = this.#points[toIndex].position;
+        let p0 = this.#points[fromIndex]._position;
+        let p1 = this.#points[fromIndex].handleNext._position;
+        let p2 = this.#points[toIndex].handlePrev._position;
+        let p3 = this.#points[toIndex]._position;
 
         let position = Vec2.addAll(
             p0,
@@ -39,13 +53,6 @@ class Spline {
 
         return position;
     }
-
-    /*
-    P0 +
-    t * (-3P0 + 3P1) +
-    t^2 * (3P0 - 6P1 +3P2) +
-    t^3 * (-P0 + 3P1 - 3P2 + P3)
-    */
 
     select(pos) {
         for (let p of this.#points) {
@@ -63,7 +70,7 @@ class Spline {
 
         if (this.#points.length > 0) {
             CTX.beginPath();
-            const start = this.#points[0].position;
+            const start = this.#points[0]._position;
             CTX.moveTo(start.x, start.y);
 
             for (let i = 1; i < iterations; i++) {
@@ -72,9 +79,10 @@ class Spline {
                 CTX.lineTo(pos.x, pos.y);
             }
 
-            const end = this.#points[this.#points.length-1].position;
+            const end = this.#points[this.#points.length-1]._position;
             CTX.lineTo(end.x, end.y);
-            CTX.strokeStyle = '#000000';
+            CTX.strokeStyle = '#FDFFFC';
+            CTX.lineWidth = 1;
             CTX.stroke();
 
             for (let p of this.#points)
@@ -87,13 +95,20 @@ class Spline {
 
 class Circle {
     constructor(pos, radius) {
-        this.position = pos;
+        this._position = pos;
         this.radius = radius;
-        this.isSelected = false;
+    }
+
+    getPosition() {
+        return this._position;
+    }
+
+    setPosition(pos) {
+        this._position = pos;
     }
 
     select(pos) {
-        if (Vec2.squareDistance(this.position, pos) <= this.radius*this.radius)
+        if (Vec2.squareDistance(this._position, pos) <= this.radius*this.radius)
             return this;
 
         return null;
@@ -103,30 +118,56 @@ class Circle {
 class ControlPoint extends Circle {
     constructor(pos) {
         super(pos, 10);
-        this.handlePrev = new Handle(this, Vec2.add(this.position, Vec2.left.mult(100)));
-        this.handleNext = new Handle(this, Vec2.add(this.position, Vec2.right.mult(100)));
+        this.handlePrev = new Handle(this, Vec2.add(this._position, Vec2.left.mult(100)));
+        this.handleNext = new Handle(this, Vec2.add(this._position, Vec2.right.mult(100)));
         this.isFirst = false;
         this.isLast = false;
+        this.isActive = false;
+        this.showHandles = false;
+    }
+
+    setPosition(pos) {
+        let offset = Vec2.sub(pos, this._position);
+        this._position = pos;
+        
+        this.handlePrev._position = Vec2.add(this.handlePrev._position, offset);
+        this.handleNext._position = Vec2.add(this.handleNext._position, offset);
     }
 
     select(pos) {
-        let selectPoint = super.select(pos);
-        if (selectPoint) return selectPoint;
+        if (this.showHandles) {
+            let selectPoint = this.handleNext.select(pos);
+            if (selectPoint) return selectPoint;
 
-        selectPoint = this.handlePrev.select(pos);
-        if (selectPoint) return selectPoint;
+            selectPoint = this.handlePrev.select(pos);
+            if (selectPoint) return selectPoint;
+        }
 
-        return this.handleNext.select(pos);
+        return super.select(pos);
+    }
+
+    onHandleMove(handle) {
+        let other = (handle == this.handlePrev) ? this.handleNext : this.handlePrev;
+
+        other._position = (Vec2.reflect(handle._position, this._position));
     }
 
     render() {
         CTX.beginPath();
-        CTX.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-        CTX.fillStyle = this.isSelected ? '#00dddd' : '#000000';
+        CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
+        CTX.fillStyle = '#FDFFFC';
         CTX.fill();
 
-        this.handlePrev.render();
-        this.handleNext.render();
+        if (this.isActive) {
+            CTX.strokeStyle = '#ff9f1c';
+            CTX.lineWidth = 3;
+            CTX.stroke(); 
+        }
+
+        if (this.showHandles) {
+            if (!this.isFirst) this.handlePrev.render();
+            if (!this.isLast) this.handleNext.render();
+        }
     }
 }
 
@@ -136,15 +177,21 @@ class Handle extends Circle {
         this.control = control;
     }
 
+    setPosition(pos) {
+        this._position = pos;
+        this.control.onHandleMove(this);
+    }
+
     render() {
         CTX.beginPath();
-        CTX.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-        CTX.strokeStyle = this.isSelected ? '#00dddd' : '#000000';
+        CTX.arc(this._position.x, this._position.y, this.radius*0.5, 0, Math.PI * 2);
+        CTX.strokeStyle = '#FDFFFC';
+        CTX.lineWidth = 1;
         CTX.stroke();
 
         CTX.beginPath();
-        CTX.moveTo(this.position.x, this.position.y);
-        CTX.lineTo(this.control.position.x, this.control.position.y);
+        CTX.moveTo(this._position.x, this._position.y);
+        CTX.lineTo(this.control._position.x, this.control._position.y);
         CTX.stroke();
     }
 }

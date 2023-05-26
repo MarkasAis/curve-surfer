@@ -16,11 +16,7 @@ let a = s.addNode(new Vec2(100, 100));
 let b = s.addNode(new Vec2(300, 300));
 s.connectNodes(a, b);
 
-// s.invert(b);
-
-// s.addNode(new Vec2(CANVAS.width*0.5, CANVAS.height*0.5));
-
-// s.addPoint(new Vec2(600, 300));
+let player = new Player(new Vec2(300, 100));
 
 CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
 
@@ -49,7 +45,8 @@ function update(deltaTime) {
         dragStart = mousePos;
         isDragging = false;
 
-        dragObject = s.select(mousePos);
+        dragObject = player.select(mousePos);
+        if (!dragObject) dragObject = s.select(mousePos);
 
         if (selectedAnchor && Input.getKeyDown('Shift')) {
 
@@ -62,8 +59,7 @@ function update(deltaTime) {
                 }
                 dragObject = null;
             } else if (!selectedAnchor.isInner()) {
-                let newNode = s.addNode(mousePos);
-                s.connectNodes(selectedAnchor, newNode);
+                let newNode = s.addNodeConnected(mousePos, selectedAnchor);
                 setSelectedAnchor(newNode);
             } else {
                 setSelectedAnchor(null);
@@ -72,8 +68,12 @@ function update(deltaTime) {
         }
 
         else if (dragObject) {
-            if (dragObject instanceof ControlNode)
-            setSelectedAnchor(dragObject);
+            if (dragObject instanceof ControlNode) {
+                setSelectedAnchor(dragObject);
+            } else if (!(dragObject instanceof Handle)) {
+                setSelectedAnchor(null);
+            }
+
 
             dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
         } else {
@@ -99,7 +99,7 @@ function update(deltaTime) {
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
         let mousePos = Input.getMousePos(CANVAS);
         setSelectedAnchor(null);
-        
+
         let selected = s.select(mousePos);
         if (selected instanceof ControlNode)
             s.removeNode(selected);
@@ -110,6 +110,8 @@ function render(deltaTime) {
     CTX.fillStyle = '#011627';
     CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
     s.render(deltaTime);
+
+    player.render(deltaTime);
 }
 
 const UPDATES_PER_SECOND = 60;

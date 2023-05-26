@@ -1,15 +1,29 @@
 class Spline {
     #nodes = [];
 
-    addNode(pos) {
-        let node = new ControlNode(pos);
+    addNode(pos, handleDir=Vec2.right, handleDist=100) {
+        let node = new ControlNode(pos, handleDir, handleDist);
         this.#nodes.push(node);
         return node;
     }
 
+    addNodeConnected(pos, from) {
+        let handleDir = Vec2.sub(from._position, pos).normalized;
+        let handleDist = Vec2.dist(pos, from._position) * 0.5;
+
+        let node = this.addNode(pos, handleDir, handleDist);
+        this.connectNodes(from, node);
+        return node;
+    }
+
     removeNode(node) {
-        if (node.nodePrev) node.nodePrev.nodeNext = node.nodeNext;
-        if (node.nodeNext) node.nodeNext.nodePrev = node.nodePrev;
+        if (node.nodePrev == node.nodeNext) {
+            node.nodePrev.nodeNext = null;
+            node.nodePrev.nodePrev = null;
+        } else {
+            if (node.nodePrev) node.nodePrev.nodeNext = node.nodeNext;
+            if (node.nodeNext) node.nodeNext.nodePrev = node.nodePrev;
+        }
         this.#nodes = this.#nodes.filter(n => n != node);
     }
 
@@ -53,77 +67,21 @@ class Spline {
         } while (cur != start && cur != null);
     }
 
-    // addPointFirst(pos) {
-    //     if (this.#points.length == 0) return this.#addPointEmpty(pos);
+    #positionAt(from, to, t) {
+        let p0 = from._position;
+        let p1 = from.handleNext._position;
+        let p2 = to.handlePrev._position;
+        let p3 = to._position;
 
-    //     let nextPoint = this.#points[0];
-    //     nextPoint.isFirst = false;
+        let position = Vec2.addAll( // TODO: cache
+            p0,
+            Vec2.mult(Vec2.add(Vec2.mult(p0, -3), Vec2.mult(p1, 3)), t),
+            Vec2.mult(Vec2.addAll(Vec2.mult(p0, 3), Vec2.mult(p1, -6), Vec2.mult(p2, 3)), t*t),
+            Vec2.mult(Vec2.addAll(Vec2.mult(p0, -1), Vec2.mult(p1, 3), Vec2.mult(p2, -3), p3), t*t*t)
+        )
 
-    //     let handleDir = Vec2.sub(pos, nextPoint._position).normalized;
-    //     let handleDist = Vec2.dist(pos, nextPoint._position) * 0.5;
-
-    //     let newPoint = new ControlNode(pos, handleDir, handleDist);
-    //     newPoint.isFirst = true;
-
-    //     this.#points.unshift(newPoint);
-    //     return newPoint;
-    // }
-
-    // #addPointEmpty(pos) {
-    //     if (this.#points.length > 0) return null;
-
-    //     let newPoint = new ControlNode(pos);
-    //     newPoint.isFirst = true;
-    //     newPoint.isLast = true;
-
-    //     this.#points.push(newPoint);
-    //     return newPoint;
-    // }
-
-    // addPointLast(pos) {
-    //     if (this.#points.length == 0) return this.#addPointEmpty(pos);
-
-    //     let prevPoint = this.#points[this.#points.length-1];
-    //     prevPoint.isLast = false;
-
-    //     let handleDir = Vec2.sub(prevPoint._position, pos).normalized;
-    //     let handleDist = Vec2.dist(pos, prevPoint._position) * 0.5;
-
-    //     let newPoint = new ControlNode(pos, handleDir, handleDist);
-    //     newPoint.isLast = true;
-
-    //     this.#points.push(newPoint);
-    //     return newPoint;
-    // }
-
-    // close() {
-    //     this.isClosed = true;
-    //     if (this.#points.length > 0) {
-    //         this.#points[0].isFirst = false;
-    //         this.#points[this.#points.length-1].isLast = false;
-    //     }
-    // }
-
-    // positionAt(t) {
-    //     let fromIndex = Math.trunc(t);
-    //     let toIndex = (fromIndex + 1) % this.#points.length;
-
-    //     let p = t % 1;
-        
-    //     let p0 = this.#points[fromIndex]._position;
-    //     let p1 = this.#points[fromIndex].handleNext._position;
-    //     let p2 = this.#points[toIndex].handlePrev._position;
-    //     let p3 = this.#points[toIndex]._position;
-
-    //     let position = Vec2.addAll(
-    //         p0,
-    //         Vec2.mult(Vec2.add(Vec2.mult(p0, -3), Vec2.mult(p1, 3)), p),
-    //         Vec2.mult(Vec2.addAll(Vec2.mult(p0, 3), Vec2.mult(p1, -6), Vec2.mult(p2, 3)), p*p),
-    //         Vec2.mult(Vec2.addAll(Vec2.mult(p0, -1), Vec2.mult(p1, 3), Vec2.mult(p2, -3), p3), p*p*p)
-    //     )
-
-    //     return position;
-    // }
+        return position;
+    }
 
     select(pos) {
         for (let n of this.#nodes) {
@@ -134,45 +92,18 @@ class Spline {
     }
 
     render(deltaTime) {
-        // const ITERATIONS_PER_SEGMENT = 30;
-        // let segmentCount = this.#points.length - 1;
-        // if (this.isClosed) segmentCount++;
-        // let iterations = ITERATIONS_PER_SEGMENT * segmentCount;
-
-
-        // if (this.#nodes.length > 0) {
-            // CTX.beginPath();
-            // CTX.strokeStyle = '#FDFFFC';
-            // CTX.lineWidth = 2;
-
-            // const start = this.#points[0]._position;
-            // CTX.moveTo(start.x, start.y);
-
-            // for (let i = 1; i < iterations; i++) {
-            //     let t = i/ITERATIONS_PER_SEGMENT;
-            //     let pos = this.positionAt(t);
-            //     CTX.lineTo(pos.x, pos.y);
-            // }
-
-            // const end = this.isClosed ? start : this.#points[this.#points.length-1]._position;
-            // CTX.lineTo(end.x, end.y);
-            // CTX.stroke();
-
-            
-        // }
-
         for (let from of this.#nodes) {
             let to = from.nodeNext;
             if (to) {
                 // line
                 CTX.beginPath();
-                CTX.strokeStyle = '#FDFFFC';
+                CTX.strokeStyle = '#FDFFFC11';
                 CTX.lineWidth = 2;
                 CTX.moveTo(from._position.x, from._position.y);
                 CTX.lineTo(to._position.x, to._position.y);
                 CTX.stroke();
 
-                //arrow
+                // arrow
                 let dir = Vec2.sub(from._position, to._position).normalized;
                 let offset = Vec2.mult(dir, 10 + 10);
                 let mid = Vec2.add(to._position, Vec2.mult(dir, 10));
@@ -180,11 +111,28 @@ class Spline {
                 let right = Vec2.add(to._position, Vec2.rotateByDeg(offset, -20));
 
                 CTX.beginPath();
-                CTX.strokeStyle = '#FDFFFC';
+                CTX.strokeStyle = '#FDFFFC11';
                 CTX.lineWidth = 2;
                 CTX.moveTo(left.x, left.y);
                 CTX.lineTo(mid.x, mid.y);
                 CTX.lineTo(right.x, right.y);
+                CTX.stroke();
+
+                // curve
+                const ITERATIONS_PER_SEGMENT = 30;
+
+                CTX.beginPath();
+                CTX.strokeStyle = '#FDFFFC';
+                CTX.lineWidth = 2;
+
+                CTX.moveTo(from.x, from.y);
+
+                for (let i = 0; i <= ITERATIONS_PER_SEGMENT; i++) {
+                    let t = i / ITERATIONS_PER_SEGMENT;
+                    let pos = this.#positionAt(from, to, t);
+                    CTX.lineTo(pos.x, pos.y);
+                }
+
                 CTX.stroke();
             }
         }
@@ -192,33 +140,9 @@ class Spline {
         for (let n of this.#nodes)
             n.render();
     }
-
-
 }
 
-class Node {
-    constructor(pos, radius) {
-        this._position = pos;
-        this.radius = radius;
-    }
-
-    getPosition() {
-        return this._position;
-    }
-
-    setPosition(pos) {
-        this._position = pos;
-    }
-
-    select(pos) {
-        if (Vec2.squareDistance(this._position, pos) <= this.radius*this.radius)
-            return this;
-
-        return null;
-    }
-}
-
-class ControlNode extends Node {
+class ControlNode extends Circle {
     constructor(pos, handleDir=Vec2.right, handleDist=100) {
         super(pos, 10);
 
@@ -265,7 +189,7 @@ class ControlNode extends Node {
 
     render() {
         CTX.beginPath();
-        CTX.strokeStyle = '#f71735';
+        CTX.strokeStyle = '#e40066';
         CTX.lineWidth = 3;
         CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
         CTX.fillStyle = '#FDFFFC';
@@ -280,7 +204,7 @@ class ControlNode extends Node {
     }
 }
 
-class Handle extends Node {
+class Handle extends Circle {
     constructor(control, pos) {
         super(pos, 10);
         this.control = control;
@@ -293,7 +217,7 @@ class Handle extends Node {
 
     render(highlight) {
         CTX.beginPath();
-        CTX.strokeStyle = highlight ? '#f71735' : '#FDFFFC';
+        CTX.strokeStyle = highlight ? '#e40066' : '#FDFFFC';
         CTX.lineWidth = 2;
         CTX.arc(this._position.x, this._position.y, this.radius*0.5, 0, Math.PI * 2);
         CTX.stroke();

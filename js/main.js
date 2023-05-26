@@ -12,9 +12,14 @@ let selectedAnchor = null;
 // let activeAnchor = null;
 
 let s = new Spline();
-// s.addPointLast(new Vec2(100, 100));
-s.addPointLast(new Vec2(CANVAS.width*0.5, CANVAS.height*0.5));
-// s.addPointLast(new Vec2(300, 300));
+let a = s.addNode(new Vec2(100, 100));
+let b = s.addNode(new Vec2(300, 300));
+s.connectNodes(a, b);
+
+// s.invert(b);
+
+// s.addNode(new Vec2(CANVAS.width*0.5, CANVAS.height*0.5));
+
 // s.addPoint(new Vec2(600, 300));
 
 CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
@@ -46,20 +51,20 @@ function update(deltaTime) {
 
         dragObject = s.select(mousePos);
 
-        if (selectedAnchor && Input.getKeyDown('Control')) {
+        if (selectedAnchor && Input.getKeyDown('Shift')) {
 
             if (dragObject) {
-                if (selectedAnchor.isFirst && dragObject.isLast || selectedAnchor.isLast && dragObject.isFirst) {
-                    s.close();
+                if (dragObject instanceof ControlNode && !selectedAnchor.isInner() && !dragObject.isInner()) {
+                    s.connectNodes(selectedAnchor, dragObject);
                     setSelectedAnchor(dragObject);
-                    dragObject = null;
+                } else {
+                    setSelectedAnchor(null);
                 }
-            } else if (selectedAnchor.isFirst || selectedAnchor.isLast) {
-                let newPoint = null;
-                if (selectedAnchor.isFirst) newPoint = s.addPointFirst(mousePos);
-                else newPoint = s.addPointLast(mousePos);
-                
-                setSelectedAnchor(newPoint);
+                dragObject = null;
+            } else if (!selectedAnchor.isInner()) {
+                let newNode = s.addNode(mousePos);
+                s.connectNodes(selectedAnchor, newNode);
+                setSelectedAnchor(newNode);
             } else {
                 setSelectedAnchor(null);
             }
@@ -67,7 +72,7 @@ function update(deltaTime) {
         }
 
         else if (dragObject) {
-            if (dragObject instanceof ControlPoint)
+            if (dragObject instanceof ControlNode)
             setSelectedAnchor(dragObject);
 
             dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
@@ -91,10 +96,14 @@ function update(deltaTime) {
         isDragging = false;
     }
 
-    // if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
-    //     setSelectedAnchor(null);
-    //     // setActiveAnchor(null);
-    // }
+    if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
+        let mousePos = Input.getMousePos(CANVAS);
+        setSelectedAnchor(null);
+        
+        let selected = s.select(mousePos);
+        if (selected instanceof ControlNode)
+            s.removeNode(selected);
+    }
 }
 
 function render(deltaTime) {

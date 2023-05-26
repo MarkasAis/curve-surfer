@@ -67,4 +67,12 @@ class Maths {
     static ceilToNearest(x, n) {
         return n * Math.ceil(x / n);
     }
+
+    static degToRad(deg) {
+        return deg / 180 * Math.PI;
+    }
+
+    static radToDeg(rad) {
+        return rad / Math.PI * 180;
+    }
 }

@@ -30,6 +30,12 @@ class Maths {
         return Math.max(min, Math.min(value, max));
     }
 
+    static wrap(value, min, max) {
+        max++;
+        let range = max - min;
+        return min + (((value - min) % range) + range) % range;
+    }
+
     // Adapted from: https://github.com/ai/easings.net/blob/master/src/easings/easingsFunctions.ts
     static easeOutBounce(x) {
         const n1 = 7.5625;

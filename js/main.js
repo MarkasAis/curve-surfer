@@ -11,7 +11,7 @@ let dragObject = null;
 let selectedAnchor = null;
 // let activeAnchor = null;
 
-let s = new Spline();
+let s = new MultiSpline();
 let a = s.addNode(new Vec2(100, 100));
 let b = s.addNode(new Vec2(300, 300));
 s.connectNodes(a, b);

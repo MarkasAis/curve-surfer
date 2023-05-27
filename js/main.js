@@ -113,7 +113,7 @@ function render(deltaTime) {
 
     let mousePos = Input.getMousePos(CANVAS);
     let res = s.nearest(mousePos);
-    s.renderPathInfo(res.spline, res.t);
+    if (res) s.renderPathInfo(res.spline, res.t);
 
     player.render(deltaTime);
 }

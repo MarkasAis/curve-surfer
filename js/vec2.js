@@ -563,26 +563,34 @@ Vec2.dist = Vec2.distance;
 Vec2.rotate = Vec2.rotateBy;
 Vec2.rotateDeg = Vec2.rotateByDeg;
 
-Object.defineProperty(Vec2, "zero", {
+Object.defineProperty(Vec2, "ZERO", {
   get: function() { return new Vec2(0, 0); }
 });
 
-Object.defineProperty(Vec2, "one", {
+Object.defineProperty(Vec2, "ONE", {
   get: function() { return new Vec2(1, 1); }
 });
 
-Object.defineProperty(Vec2, "up", {
+Object.defineProperty(Vec2, "UP", {
   get: function() { return new Vec2(0, 1); }
 });
 
-Object.defineProperty(Vec2, "right", {
+Object.defineProperty(Vec2, "RIGHT", {
   get: function() { return new Vec2(1, 0); }
 });
 
-Object.defineProperty(Vec2, "down", {
+Object.defineProperty(Vec2, "DOWN", {
   get: function() { return new Vec2(0, -1); }
 });
 
-Object.defineProperty(Vec2, "left", {
+Object.defineProperty(Vec2, "LEFT", {
   get: function() { return new Vec2(-1, 0); }
+});
+
+Object.defineProperty(Vec2, "MAX_VALUE", {
+  get: function() { return new Vec2(Number.MAX_VALUE, Number.MAX_VALUE); }
+});
+
+Object.defineProperty(Vec2, "MIN_VALUE", {
+  get: function() { return new Vec2(Number.MIN_VALUE, Number.MIN_VALUE); }
 });

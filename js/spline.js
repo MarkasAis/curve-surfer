@@ -17,8 +17,11 @@ Loop
 */
 
 class Spline {
+    multispline = null;
     nodes = [];
     isClosed = false;
+    aabb = null;
+    segmentAABB = [];
 
     constructor (nodes=[]) {
         this.nodes = nodes;
@@ -33,6 +36,8 @@ class Spline {
             this.nodes[0].isFirst = true;
             this.nodes[this.nodes.length-1].isLast = true;
         }
+
+        this.updateAllSegmentAABB();
     }
 
     #getNodeAtIndex(index) {
@@ -50,7 +55,7 @@ class Spline {
         let nextPos = next ? next._position : pos;
 
         let dir;
-        if (prevPos == nextPos) dir = Vec2.left;
+        if (prevPos == nextPos) dir = Vec2.LEFT;
         else dir = Vec2.sub(nextPos, prevPos).normalized;
 
         let dist = Number.MAX_VALUE;
@@ -72,11 +77,13 @@ class Spline {
         }
 
         this.nodes.splice(index, 0, node);
+        this.updateAllSegmentAABB();
         return node;
     }
 
     removeNode(node) {
         this.nodes = this.nodes.filter(n => n != node);
+        this.updateAllSegmentAABB();
     }
 
     close() {
@@ -84,6 +91,34 @@ class Spline {
         this.isClosed = true;
         this.nodes[0].isFirst = false;
         this.nodes[this.nodes.length-1].isLast = false;
+    }
+
+    computeSegmentAABB(index) {
+        let from = this.nodes[index];
+        let to = this.nodes[(index+1) % this.nodes.length];
+
+        let positions = [from._position, from.handleNext._position, to.handlePrev._position, to._position];
+        return Maths.aabb(positions);
+    }
+
+    updateAllSegmentAABB() {
+        this.segmentAABB = [];
+        for (let i = 0; i < this.nodes.length; i++)
+            this.segmentAABB.push(this.computeSegmentAABB(i));
+
+        this.updateAABB();
+    }
+
+    updateAABB() {
+        let min = Vec2.MAX_VALUE;
+        let max = Vec2.MIN_VALUE;
+
+        for (let s of this.segmentAABB) {
+            min = Vec2.min(min, s.min);
+            max = Vec2.max(max, s.max);
+        }
+
+        this.aabb = { min, max };
     }
 
     evaluate(t) {
@@ -198,20 +233,35 @@ class Spline {
         CTX.stroke();
     }
 
+    renderAABB(aabb, highlight=false) {
+        if (!aabb) return;
+        CTX.strokeStyle = "#00ff00";
+        CTX.lineWidth = highlight ? 2 : 1;
+        let width = aabb.max.x - aabb.min.x;
+        let height = aabb.max.y - aabb.min.y;
+        CTX.strokeRect(aabb.min.x, aabb.min.y, width, height);
+    }
+
     render(deltaTime) {
         for (let i = 0; i < this.nodes.length-1; i++) {
             let from = this.nodes[i];
             let to = this.nodes[i+1];
-            this.renderArrow(from._position, to._position);
+            // this.renderArrow(from._position, to._position);
             this.renderCurve(from, to);
         }
 
         if (this.isClosed) {
             let from = this.nodes[this.nodes.length-1];
             let to = this.nodes[0];
-            this.renderArrow(from._position, to._position, true);
+            // this.renderArrow(from._position, to._position, true);
             this.renderCurve(from, to);
         }
+
+        let segmentCount = this.isClosed? this.nodes.length : this.nodes.length-1;
+        for (let i = 0; i < segmentCount; i++)
+            this.renderAABB(this.segmentAABB[i]);
+
+        this.renderAABB(this.aabb, true);
 
         for (let n of this.nodes)
             n.render(deltaTime);
@@ -220,9 +270,11 @@ class Spline {
 
 class MultiSpline {
     splines = [];
+    aabb = null;
 
     addNode(pos) {
         let spline = new Spline();
+        spline.multispline = this;
         let node = spline.addNode(pos, 0);
         this.splines.push(spline);
         return node;
@@ -241,6 +293,8 @@ class MultiSpline {
         this.splines = this.splines.filter(s => s != spline);
     }
 
+    nearest(pos, maxDist) {}
+
     connectNodes(from, to) {
         if (from.isInner() || to.isInner() || from == to) return;
         if (from.spline == to.spline) {
@@ -254,6 +308,7 @@ class MultiSpline {
         let toNodes = to.isLast ? to.spline.nodes.reverse() : to.spline.nodes;
         let combinedNodes = from.spline.nodes.concat(toNodes);
         let combinedSpline = new Spline(combinedNodes);
+        combinedSpline.multispline = this;
         
         this.splines.push(combinedSpline);
     }
@@ -272,152 +327,8 @@ class MultiSpline {
     }
 }
 
-class MultiSplineOld {
-    #nodes = [];
-
-    // addNode(pos, handleDir=Vec2.right, handleDist=100) {
-    //     let node = new ControlNode(pos, handleDir, handleDist);
-    //     this.#nodes.push(node);
-    //     return node;
-    // }
-
-    addNodeConnected(pos, from) {
-        let handleDir = Vec2.sub(from._position, pos).normalized;
-        let handleDist = Vec2.dist(pos, from._position) * 0.5;
-
-        let node = this.addNode(pos, handleDir, handleDist);
-        this.connectNodes(from, node);
-        return node;
-    }
-
-    // removeNode(node) {
-    //     if (node.nodePrev == node.nodeNext) {
-    //         node.nodePrev.nodeNext = null;
-    //         node.nodePrev.nodePrev = null;
-    //     } else {
-    //         if (node.nodePrev) node.nodePrev.nodeNext = node.nodeNext;
-    //         if (node.nodeNext) node.nodeNext.nodePrev = node.nodePrev;
-    //     }
-    //     this.#nodes = this.#nodes.filter(n => n != node);
-    // }
-
-    connectNodes(from, to) {
-        if (from.isInner() || to.isInner()) return;
-
-        if (from.nodeNext == null) {
-            if (to.nodePrev != null) this.invert(to);
-            from.nodeNext = to;
-            to.nodePrev = from;
-        } else {
-            if (to.nodeNext != null) this.invert(to);
-            from.nodePrev = to;
-            to.nodeNext = from;
-        }
-    }
-
-    disconnectNodes(from, to) {
-        if (from.nodeNext == to && to.nodePrev == from) {
-            from.nodeNext = null;
-            to.nodePrev = null;
-        } else if (from.nodePrev == to && to.nodeNext == from) {
-            from.nodePrev = null;
-            to.nodeNext = null;
-        }
-    }
-
-    invert(node) {
-        let start = node.nodePrev ? node.nodePrev : node;
-
-        while (start != node && start.nodePrev)
-            start = start.nodePrev;
-
-        let cur = start;
-        do {
-            let t = cur.nodePrev;
-            cur.nodePrev = cur.nodeNext;
-            cur.nodeNext = t;
-
-            cur = cur.nodePrev;
-        } while (cur != start && cur != null);
-    }
-
-    #positionAt(from, to, t) {
-        let p0 = from._position;
-        let p1 = from.handleNext._position;
-        let p2 = to.handlePrev._position;
-        let p3 = to._position;
-
-        let position = Vec2.addAll( // TODO: cache
-            p0,
-            Vec2.mult(Vec2.add(Vec2.mult(p0, -3), Vec2.mult(p1, 3)), t),
-            Vec2.mult(Vec2.addAll(Vec2.mult(p0, 3), Vec2.mult(p1, -6), Vec2.mult(p2, 3)), t*t),
-            Vec2.mult(Vec2.addAll(Vec2.mult(p0, -1), Vec2.mult(p1, 3), Vec2.mult(p2, -3), p3), t*t*t)
-        )
-
-        return position;
-    }
-
-    select(pos) {
-        for (let n of this.#nodes) {
-            let selectedNode = n.select(pos);
-            if (selectedNode) return selectedNode;
-        }
-        return null;
-    }
-
-    render(deltaTime) {
-        for (let from of this.#nodes) {
-            let to = from.nodeNext;
-            if (to) {
-                // line
-                CTX.beginPath();
-                CTX.strokeStyle = '#FDFFFC11';
-                CTX.lineWidth = 2;
-                CTX.moveTo(from._position.x, from._position.y);
-                CTX.lineTo(to._position.x, to._position.y);
-                CTX.stroke();
-
-                // arrow
-                let dir = Vec2.sub(from._position, to._position).normalized;
-                let offset = Vec2.mult(dir, 10 + 10);
-                let mid = Vec2.add(to._position, Vec2.mult(dir, 10));
-                let left = Vec2.add(to._position, Vec2.rotateByDeg(offset, 20));
-                let right = Vec2.add(to._position, Vec2.rotateByDeg(offset, -20));
-
-                CTX.beginPath();
-                CTX.strokeStyle = '#FDFFFC11';
-                CTX.lineWidth = 2;
-                CTX.moveTo(left.x, left.y);
-                CTX.lineTo(mid.x, mid.y);
-                CTX.lineTo(right.x, right.y);
-                CTX.stroke();
-
-                // curve
-                const ITERATIONS_PER_SEGMENT = 30;
-
-                CTX.beginPath();
-                CTX.strokeStyle = '#FDFFFC';
-                CTX.lineWidth = 2;
-
-                CTX.moveTo(from.x, from.y);
-
-                for (let i = 0; i <= ITERATIONS_PER_SEGMENT; i++) {
-                    let t = i / ITERATIONS_PER_SEGMENT;
-                    let pos = this.#positionAt(from, to, t);
-                    CTX.lineTo(pos.x, pos.y);
-                }
-
-                CTX.stroke();
-            }
-        }
-
-        for (let n of this.#nodes)
-            n.render();
-    }
-}
-
 class ControlNode extends Circle {
-    constructor(pos, handleDir=Vec2.left, handleDist=100) {
+    constructor(pos, handleDir=Vec2.LEFT, handleDist=100) {
         super(pos, 10);
 
         this.spline = null;
@@ -440,6 +351,7 @@ class ControlNode extends Circle {
         
         this.handlePrev._position = Vec2.add(this.handlePrev._position, offset);
         this.handleNext._position = Vec2.add(this.handleNext._position, offset);
+        this.spline.updateAllSegmentAABB();
     }
 
     select(pos) {
@@ -458,6 +370,7 @@ class ControlNode extends Circle {
         let other = (handle == this.handlePrev) ? this.handleNext : this.handlePrev;
 
         other._position = (Vec2.reflect(handle._position, this._position));
+        this.spline.updateAllSegmentAABB();
     }
 
     render() {

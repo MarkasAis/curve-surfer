@@ -1,7 +1,7 @@
 class Input {
     static #keyStates = {};
     static #mouseStates = {};
-    static #mouseClientPos = Vec2.zero;
+    static #mouseClientPos = Vec2.ZERO;
     static #currentFrame = 0;
 
     static #getKeyState(key) {

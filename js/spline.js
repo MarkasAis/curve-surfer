@@ -1,21 +1,3 @@
-/*
-MULTI SPLINE
-AddNode
-AddNodeConnected
-RemoveNode
-ConnectNodes
-DisconnectNodes
-
-Nearest: {Spline, t, position}
-
-SPLINE
-AddNodeFirst
-AddNodeLast
-RemoveNode: [Spline, Spline]
-Loop
-
-*/
-
 class Spline {
     multispline = null;
     nodes = [];
@@ -40,16 +22,16 @@ class Spline {
         this.updateAllSegmentAABB();
     }
 
-    #getNodeAtIndex(index) {
-        if (this.isClosed) index = Maths.wrap(index, 0, this.nodes.length-1);
+    #getNode(index, loop=false) {
+        if (this.isClosed || loop) index = Maths.wrap(index, 0, this.nodes.length-1);
         if (index < 0 || index >= this.nodes.length) return null;
         return this.nodes[index];
     }
 
     addNode(pos, index) {
         
-        let prev = this.#getNodeAtIndex(index-1);
-        let next = this.#getNodeAtIndex(index);
+        let prev = this.#getNode(index-1);
+        let next = this.#getNode(index);
 
         let prevPos = prev ? prev._position : pos;
         let nextPos = next ? next._position : pos;
@@ -94,11 +76,11 @@ class Spline {
     }
 
     computeSegmentAABB(index) {
-        let from = this.nodes[index];
-        let to = this.nodes[(index+1) % this.nodes.length];
+        let from = this.#getNode(index, true);
+        let to = this.#getNode(index+1, true);
 
         let positions = [from._position, from.handleNext._position, to.handlePrev._position, to._position];
-        return Maths.aabb(positions);
+        return AABB.fromPositions(positions);
     }
 
     updateAllSegmentAABB() {
@@ -110,15 +92,57 @@ class Spline {
     }
 
     updateAABB() {
-        let min = Vec2.MAX_VALUE;
-        let max = Vec2.MIN_VALUE;
+        this.aabb = AABB.fromAABB(this.segmentAABB);
+    }
 
-        for (let s of this.segmentAABB) {
-            min = Vec2.min(min, s.min);
-            max = Vec2.max(max, s.max);
+    sampleSegmentNearest(pos, index) {
+        const SAMPLE_COUNT = 10;
+
+        let from = this.#getNode(index, true);
+        let to = this.#getNode(index+1, true);
+
+        let best = {
+            distance: Number.MAX_VALUE,
+            pos: null,
+            t: 0
+        };
+
+        for (let i = 0; i < SAMPLE_COUNT; i++) {
+            let t = i / (SAMPLE_COUNT-1);
+            let target = this.evaluateBetween(from, to, t);
+
+            let dist =  Vec2.dist(pos, target);
+            if (dist < best.distance) {
+                best.distance = dist;
+                best.pos = target;
+                best.t = index + t;
+            }
         }
 
-        this.aabb = { min, max };
+        return best;
+    }
+
+    fineTuneNearest(pos, guess) {
+        return guess; // TODO: newton's method
+    }
+
+    nearest(pos, maxDist=Number.MAX_VALUE) {
+        if (this.aabb.distance(pos) > maxDist) return null;
+
+        let best = null;
+        let segmentCount = this.isClosed ? this.nodes.length : this.nodes.length-1;
+
+        for (let i = 0; i < segmentCount; i++) {
+            if (this.segmentAABB[i].distance(pos) > maxDist) continue;
+
+            let res = this.sampleSegmentNearest(pos, i);
+            if (res.distance < maxDist) {
+                best = res;
+                maxDist = res.distance;
+            }
+        }
+
+        return this.fineTuneNearest(pos, best);
     }
 
     evaluate(t) {
@@ -130,10 +154,10 @@ class Spline {
         let i = Math.trunc(t);
         let frac = t % 1;
 
-        let from = this.nodes[i % n]
-        let to = this.nodes[(i+1) % n];
+        let from = this.#getNode(i, true)
+        let to = this.#getNode(i+1, true);
 
-        this.evaluateBetween(from, to, frac);
+        return this.evaluateBetween(from, to, frac);
     }
 
     evaluateBetween(from, to, t) {
@@ -151,10 +175,6 @@ class Spline {
 
         return position;
     }
-
-    // reverse() {
-    //     this.nodes = this.nodes.reverse();
-    // }
 
     select(pos) {
         for (let n of this.nodes) {
@@ -242,6 +262,15 @@ class Spline {
         CTX.strokeRect(aabb.min.x, aabb.min.y, width, height);
     }
 
+    renderPathInfo(t) {
+        let pos = this.evaluate(t);
+
+        CTX.beginPath();
+        CTX.fillStyle = "#00ff00";
+        CTX.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+        CTX.fill();
+    }
+
     render(deltaTime) {
         for (let i = 0; i < this.nodes.length-1; i++) {
             let from = this.nodes[i];
@@ -293,7 +322,23 @@ class MultiSpline {
         this.splines = this.splines.filter(s => s != spline);
     }
 
-    nearest(pos, maxDist) {}
+    nearest(pos, maxDist=Number.MAX_VALUE) {
+        let best = null;
+        for (let s of this.splines) {
+            let res = s.nearest(pos, maxDist);
+            if (res) {
+                maxDist = res.distance;
+                best = res;
+                best.spline = s;
+            }
+        }
+
+        return best;
+    }
+
+    renderPathInfo(spline, t) {
+        spline.renderPathInfo(t);
+    }
 
     connectNodes(from, to) {
         if (from.isInner() || to.isInner() || from == to) return;

@@ -36,18 +36,6 @@ class Maths {
         return min + (((value - min) % range) + range) % range;
     }
 
-    static aabb(positions) {
-        let min = Vec2.MAX_VALUE;
-        let max = Vec2.MIN_VALUE;
-
-        for (let p of positions) {
-            min = Vec2.min(min, p);
-            max = Vec2.max(max, p);
-        }
-
-        return { min, max };
-    }
-
     // Adapted from: https://github.com/ai/easings.net/blob/master/src/easings/easingsFunctions.ts
     static easeOutBounce(x) {
         const n1 = 7.5625;

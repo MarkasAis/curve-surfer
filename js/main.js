@@ -111,6 +111,10 @@ function render(deltaTime) {
     CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
     s.render(deltaTime);
 
+    let mousePos = Input.getMousePos(CANVAS);
+    let res = s.nearest(mousePos);
+    s.renderPathInfo(res.spline, res.t);
+
     player.render(deltaTime);
 }
 

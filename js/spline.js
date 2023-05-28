@@ -4,6 +4,7 @@ class Segment {
         this.to = to;
         this.aabb = null;
         this.coefficients = null;
+        this.points = [];
 
         this.update();
     }
@@ -24,12 +25,25 @@ class Segment {
         let p2 = this.to.handlePrev._position;
         let p3 = this.to._position;
             
+        
+
         this.coefficients = [
             p0,
             Vec2.add(Vec2.mult(p0, -3), Vec2.mult(p1, 3)),
             Vec2.addAll(Vec2.mult(p0, 3), Vec2.mult(p1, -6), Vec2.mult(p2, 3)),
             Vec2.addAll(Vec2.mult(p0, -1), Vec2.mult(p1, 3), Vec2.mult(p2, -3), p3)
         ];
+    }
+
+    updatePoints() {
+        const NUM_SEGMENTS = 3;
+
+        this.points = [];
+        for (let i = 0; i <= NUM_SEGMENTS; i++) {
+            let t = i / NUM_SEGMENTS;
+            let pos = this.evaluate(t);
+            this.points.push(pos);
+        }
     }
 
     evaluate(t) {
@@ -43,8 +57,27 @@ class Segment {
         return position;
     }
 
+    evaluateFirstDerivative(t) {
+        let position = Vec2.addAll(
+            this.coefficients[1],
+            Vec2.mult(this.coefficients[2], 2*t),
+            Vec2.mult(this.coefficients[3], 3*t*t)
+        )
+
+        return position;
+    }
+
+    evaluateSecondDerivative(t) {
+        let position = Vec2.addAll(
+            Vec2.mult(this.coefficients[2], 2),
+            Vec2.mult(this.coefficients[3], 6*t)
+        )
+
+        return position;
+    }
+
     sampleNearest(pos) {
-        const SAMPLE_COUNT = 10;
+        const SAMPLE_COUNT = 5;
 
         let best = {
             distance: Number.MAX_VALUE,
@@ -82,6 +115,19 @@ class Segment {
 
         for (let i = 0; i <= SEGMENT_COUNT; i++) {
             let t = i / SEGMENT_COUNT;
+            let pos = this.evaluate(t);
+            CTX.lineTo(pos.x, pos.y);
+        }
+
+        CTX.stroke();
+
+        CTX.beginPath();
+        CTX.strokeStyle = '#FDFFFC';
+        CTX.lineWidth = 2;
+        CTX.moveTo(this.from.x, this.from.y);
+
+        for (let i = 0; i <= 5; i++) {
+            let t = i / 5;
             let pos = this.evaluate(t);
             CTX.lineTo(pos.x, pos.y);
         }
@@ -268,7 +314,70 @@ class Spline {
     }
 
     fineTuneNearest(pos, guess) {
-        return guess; // TODO: newton's method
+
+        // f(t) = P0 + P1*t + P2*t^2 + P3*t^3
+        // f'(t) = P1 + P2*t + P3*t^2
+        // f''(t) = P2 + P3*t
+
+        // h(t) = pos-f(t)
+        // h'(t) = -f'(t)
+
+        // k(t) = h(t) . f'(t)
+        // k'(t) = h(t) . f''(t) + h'(t) . f'(t)
+
+        // t = t - k(t)/k'(t)
+
+        let cur = {
+            distance: guess.distance,
+            pos: guess.pos,
+            t: guess.t
+        };
+
+        for (let i = 0; i < 10; i++) {
+            
+
+            // guess.t = 0.5;
+            // guess.pos = this.evaluate(cur.t);
+            // pos = new Vec2(260, 310);
+
+            // console.log(guess.t);
+
+            // CTX.beginPath();
+            // CTX.fillStyle = '#fff';
+            // CTX.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+            // CTX.fill();
+
+
+            // CTX.beginPath();
+            // CTX.fillStyle = i == 0 ? '#ff0000' : '#0000ff';
+            // CTX.arc(cur.pos.x, cur.pos.y, 5, 0, Math.PI * 2);
+            // CTX.fill();
+
+            let res = this.#toSegment(cur.t);
+
+            let f = cur.pos;
+            let f_1 = res.segment.evaluateFirstDerivative(res.t);
+            let f_2 = res.segment.evaluateSecondDerivative(res.t);
+
+            // console.log(res.segment.coefficients);
+
+            let h = Vec2.sub(pos, f);
+            let h_1 = f_1.negated;
+
+            let k = Vec2.dot(h, f_1);
+            let k_1 = Vec2.dot(h, f_2) + Vec2.dot(h_1, f_1);
+
+            if (k_1 != 0) {
+                cur.t = cur.t - (k / k_1) * 1;
+                cur.pos = this.evaluate(cur.t);
+            }
+        }
+
+        cur.distance = Vec2.dist(cur.pos, pos);
+        console.log(cur.distance);
+
+        if (cur.distance < guess.distance) return cur;
+        return guess;
     }
 
     nearest(pos, maxDist=Number.MAX_VALUE) {
@@ -291,14 +400,29 @@ class Spline {
         return this.fineTuneNearest(pos, best);
     }
 
-    evaluate(t) {
-        if (this.isClosed) t = Maths.wrap(t, 0, this.nodes.length);
-        else t = Maths.clamp(t, 0, this.nodes.length-1);
+    #constrain(t) {
+        if (this.isClosed) return Maths.wrap(t, 0, this.nodes.length);
+        return Maths.clamp(t, 0, this.nodes.length-1);
+    }
 
+    #toSegment(t) {
+        t = this.#constrain(t);
         let i = Math.trunc(t);
         let frac = t % 1;
 
-        return this.segments[i].evaluate(frac);
+        if (!this.isClosed && i == this.nodes.length-1) {
+            i = this.segments.length-2;
+            frac = 1;
+        }
+
+        // console.log(t, i);
+        
+        return { segment: this.segments[i], t: frac };
+    }
+
+    evaluate(t) {
+        let res = this.#toSegment(t);
+        return res.segment.evaluate(res.t);
     }
 
     select(pos) {

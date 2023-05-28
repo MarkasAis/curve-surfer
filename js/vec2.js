@@ -258,6 +258,13 @@ class Vec2 {
     return this;
   }
 
+  negate() {
+    this.x = -this.x;
+    this.y = -this.y;
+
+    return this;
+  }
+
   toInt() {
     this.x = ~~this.x;
     this.y = ~~this.y;
@@ -511,6 +518,10 @@ Object.defineProperty(Vec2.prototype, "magnitude", {
 
 Object.defineProperty(Vec2.prototype, "normalized", {
   get: function() { return this.clone().normalize(); }
+});
+
+Object.defineProperty(Vec2.prototype, "negated", {
+  get: function() { return this.clone().negate(); }
 });
 
 Object.defineProperty(Vec2.prototype, "direction", {

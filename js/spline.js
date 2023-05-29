@@ -1,10 +1,49 @@
+class Line {
+    constructor(from, to) {
+        this.from = from;
+        this.to = to;
+
+        this.dir = Vec2.sub(to, from);
+        this.length = this.dir.magnitude;
+        if (this.length > 0)
+            this.dir.divide(this.length);
+    }
+
+    nearest(pos) {
+        let v = Vec2.sub(pos, this.from);
+        let d = Vec2.dot(v, this.dir);
+        d = Maths.clamp(d, 0, this.length);
+
+        let target = Vec2.add(this.from, Vec2.mult(this.dir, d));
+        let t = d / this.length;
+        let distSq = Vec2.squareDistance(pos, target);
+
+        return {
+            pos: target,
+            t: t,
+            distSq: distSq
+        }
+    }
+
+    render() {
+        CTX.beginPath();
+        CTX.strokeStyle = '#00ff00';
+        CTX.lineWidth = 2;
+        CTX.moveTo(this.from.x, this.from.y);
+        CTX.lineTo(this.to.x, this.to.y);
+        CTX.stroke();
+    }
+}
+
 class Segment {
     constructor(from, to) {
         this.from = from;
         this.to = to;
         this.aabb = null;
         this.coefficients = null;
-        this.points = [];
+        this.lines = [];
+
+        this.nearCheck = false;
 
         this.update();
     }
@@ -12,6 +51,7 @@ class Segment {
     update() {
         this.updateAABB();
         this.updateCoefficients();
+        this.updateLines();
     }
 
     updateAABB() {
@@ -24,9 +64,7 @@ class Segment {
         let p1 = this.from.handleNext._position;
         let p2 = this.to.handlePrev._position;
         let p3 = this.to._position;
-            
         
-
         this.coefficients = [
             p0,
             Vec2.add(Vec2.mult(p0, -3), Vec2.mult(p1, 3)),
@@ -35,14 +73,20 @@ class Segment {
         ];
     }
 
-    updatePoints() {
-        const NUM_SEGMENTS = 3;
+    updateLines() {
+        const NUM_LINES = 10;
 
-        this.points = [];
-        for (let i = 0; i <= NUM_SEGMENTS; i++) {
-            let t = i / NUM_SEGMENTS;
+        this.lines = [];
+        let prevPos = this.evaluate(0);
+
+        for (let i = 1; i <= NUM_LINES; i++) {
+            let t = i / NUM_LINES;
             let pos = this.evaluate(t);
-            this.points.push(pos);
+
+            let line = new Line(prevPos, pos);
+            this.lines.push(line);
+
+            prevPos = pos;
         }
     }
 
@@ -57,53 +101,31 @@ class Segment {
         return position;
     }
 
-    evaluateFirstDerivative(t) {
-        let position = Vec2.addAll(
-            this.coefficients[1],
-            Vec2.mult(this.coefficients[2], 2*t),
-            Vec2.mult(this.coefficients[3], 3*t*t)
-        )
-
-        return position;
-    }
-
-    evaluateSecondDerivative(t) {
-        let position = Vec2.addAll(
-            Vec2.mult(this.coefficients[2], 2),
-            Vec2.mult(this.coefficients[3], 6*t)
-        )
-
-        return position;
-    }
-
-    sampleNearest(pos) {
-        const SAMPLE_COUNT = 5;
-
+    nearest(pos) {
         let best = {
-            distance: Number.MAX_VALUE,
+            distSq: Number.MAX_VALUE,
             pos: null,
             t: 0
         };
 
-        for (let i = 0; i < SAMPLE_COUNT; i++) {
-            let t = i / (SAMPLE_COUNT-1);
-            let target = this.evaluate(t);
+        for (let i = 0; i < this.lines.length; i++) {
+            let tOffset = i / this.lines.length;
+            let res = this.lines[i].nearest(pos);
 
-            let dist =  Vec2.dist(pos, target);
-            if (dist < best.distance) {
-                best.distance = dist;
-                best.pos = target;
-                best.t = t;
+            if (res.distSq < best.distSq) {
+                res.t = tOffset + res.t/this.lines.length;
+                best = res;
             }
         }
 
         return best;
     }
 
-    nearest(pos, maxDist) {
-        if (this.aabb.distance(pos) > maxDist) return null;
-
-        return this.sampleNearest(pos);
+    render() {
+        this.renderArrow();
+        this.renderCurve();
+        if (this.nearCheck) this.renderLines();
+        this.aabb.render(this.nearCheck, false);
     }
 
     renderCurve() {
@@ -120,19 +142,11 @@ class Segment {
         }
 
         CTX.stroke();
+    }
 
-        CTX.beginPath();
-        CTX.strokeStyle = '#FDFFFC';
-        CTX.lineWidth = 2;
-        CTX.moveTo(this.from.x, this.from.y);
-
-        for (let i = 0; i <= 5; i++) {
-            let t = i / 5;
-            let pos = this.evaluate(t);
-            CTX.lineTo(pos.x, pos.y);
-        }
-
-        CTX.stroke();
+    renderLines() {
+        for (let l of this.lines)
+            l.render();
     }
 
     renderArrow(dashed=false) {
@@ -218,8 +232,9 @@ class Spline {
 
     #updateSegments() {
         this.segments = [];
+        let segmentCount = this.isClosed ? this.nodes.length : this.nodes.length-1;
 
-        for (let i = 0; i < this.nodes.length; i++) {
+        for (let i = 0; i < segmentCount; i++) {
             let from = this.getNode(i, true);
             let to = this.getNode(i+1, true);
             let segment = new Segment(from, to);
@@ -289,6 +304,7 @@ class Spline {
         this.isClosed = true;
         this.nodes[0].isFirst = false;
         this.nodes[this.nodes.length-1].isLast = false;
+        this.#updateSegments();
     }
 
     open() {
@@ -297,13 +313,17 @@ class Spline {
             this.nodes[0].isFirst = true;
             this.nodes[this.nodes.length-1].isLast = true;
         }
+        this.#updateSegments();
     }
 
     onNodeUpdated(node) {
         let index = this.nodes.indexOf(node);
 
-        this.segments[index].update();
-        this.segments[Maths.wrap(index-1, 0, this.nodes.length-1)].update();
+        let from = this.#toSegment(index);
+        let to = this.#toSegment(index-1);
+
+        if (from) from.segment.update();
+        if (to) to.segment.update();
 
         this.updateAABB();
     }
@@ -313,95 +333,38 @@ class Spline {
         this.aabb = AABB.fromAABB(segmentAABB);
     }
 
-    fineTuneNearest(pos, guess) {
-
-        // f(t) = P0 + P1*t + P2*t^2 + P3*t^3
-        // f'(t) = P1 + P2*t + P3*t^2
-        // f''(t) = P2 + P3*t
-
-        // h(t) = pos-f(t)
-        // h'(t) = -f'(t)
-
-        // k(t) = h(t) . f'(t)
-        // k'(t) = h(t) . f''(t) + h'(t) . f'(t)
-
-        // t = t - k(t)/k'(t)
-
-        let cur = {
-            distance: guess.distance,
-            pos: guess.pos,
-            t: guess.t
-        };
-
-        for (let i = 0; i < 10; i++) {
-            
-
-            // guess.t = 0.5;
-            // guess.pos = this.evaluate(cur.t);
-            // pos = new Vec2(260, 310);
-
-            // console.log(guess.t);
-
-            // CTX.beginPath();
-            // CTX.fillStyle = '#fff';
-            // CTX.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
-            // CTX.fill();
-
-
-            // CTX.beginPath();
-            // CTX.fillStyle = i == 0 ? '#ff0000' : '#0000ff';
-            // CTX.arc(cur.pos.x, cur.pos.y, 5, 0, Math.PI * 2);
-            // CTX.fill();
-
-            let res = this.#toSegment(cur.t);
-
-            let f = cur.pos;
-            let f_1 = res.segment.evaluateFirstDerivative(res.t);
-            let f_2 = res.segment.evaluateSecondDerivative(res.t);
-
-            // console.log(res.segment.coefficients);
-
-            let h = Vec2.sub(pos, f);
-            let h_1 = f_1.negated;
-
-            let k = Vec2.dot(h, f_1);
-            let k_1 = Vec2.dot(h, f_2) + Vec2.dot(h_1, f_1);
-
-            if (k_1 != 0) {
-                cur.t = cur.t - (k / k_1) * 1;
-                cur.pos = this.evaluate(cur.t);
-            }
-        }
-
-        cur.distance = Vec2.dist(cur.pos, pos);
-        console.log(cur.distance);
-
-        if (cur.distance < guess.distance) return cur;
-        return guess;
-    }
-
-    nearest(pos, maxDist=Number.MAX_VALUE) {
-        if (this.aabb.distance(pos) > maxDist) return null;
-
-        let best = null;
+    nearest(pos) {
         let segmentCount = this.isClosed ? this.nodes.length : this.nodes.length-1;
+        let candidates = [];
 
         for (let i = 0; i < segmentCount; i++) {
-            
+            let segment = this.segments[i];
+            segment.nearCheck = false;
+            let distSq = segment.aabb.distanceSquared(pos);
+            candidates.push({distSq, segment, index: i});
+        }
 
-            let res = this.segments[i].nearest(pos, maxDist);
-            if (res && res.distance < maxDist) {
-                res.t += i;
+        let best = null;
+        let maxDistSq = Number.MAX_VALUE;
+
+        candidates.sort((l, r) => l.distSq - r.distSq);
+        for (let c of candidates) {
+            if (c.distSq >= maxDistSq) continue;
+
+            let res = c.segment.nearest(pos);
+            c.segment.nearCheck = true;
+            if (res.distSq < maxDistSq) {
+                maxDistSq = res.distSq;
+                res.t += c.index;
                 best = res;
-                maxDist = res.distance;
             }
         }
 
-        return this.fineTuneNearest(pos, best);
+        return best;
     }
 
     #constrain(t) {
-        if (this.isClosed) return Maths.wrap(t, 0, this.nodes.length);
+        if (this.isClosed) return Maths.wrap(t, 0, this.nodes.length-1);
         return Maths.clamp(t, 0, this.nodes.length-1);
     }
 
@@ -411,11 +374,10 @@ class Spline {
         let frac = t % 1;
 
         if (!this.isClosed && i == this.nodes.length-1) {
-            i = this.segments.length-2;
+            if (this.nodes.length <= 1) return null;
+            i = this.segments.length-1;
             frac = 1;
         }
-
-        // console.log(t, i);
         
         return { segment: this.segments[i], t: frac };
     }
@@ -433,15 +395,6 @@ class Spline {
         return null;
     }
 
-    renderAABB(aabb, highlight=false) {
-        if (!aabb) return;
-        CTX.strokeStyle = "#00ff00";
-        CTX.lineWidth = highlight ? 2 : 1;
-        let width = aabb.max.x - aabb.min.x;
-        let height = aabb.max.y - aabb.min.y;
-        CTX.strokeRect(aabb.min.x, aabb.min.y, width, height);
-    }
-
     renderPathInfo(t) {
         let pos = this.evaluate(t);
 
@@ -453,20 +406,16 @@ class Spline {
 
     render(deltaTime) {
         for (let i = 0; i < this.nodes.length-1; i++) {
-            this.segments[i].renderArrow();
-            this.segments[i].renderCurve();
+            let segment = this.segments[i];
+            segment.render();
         }
 
         if (this.isClosed) {
-            this.segments[this.nodes.length-1].renderArrow(true);
-            this.segments[this.nodes.length-1].renderCurve();
+            let segment = this.segments[this.nodes.length-1];
+            segment.render();
         }
 
-        let segmentCount = this.isClosed? this.nodes.length : this.nodes.length-1;
-        for (let i = 0; i < segmentCount; i++)
-            this.renderAABB(this.segments[i].aabb);
-
-        this.renderAABB(this.aabb, true);
+        this.aabb.render(true, true);
 
         for (let n of this.nodes)
             n.render(deltaTime);
@@ -498,14 +447,29 @@ class MultiSpline {
         this.splines = this.splines.filter(s => s != spline);
     }
 
-    nearest(pos, maxDist=Number.MAX_VALUE) {
+    nearest(pos) {
+        let candidates = [];
+
+        for (let i = 0; i < this.splines.length; i++) {
+            let spline = this.splines[i];
+            spline.nearCheck = false;
+            let distSq = spline.aabb.distanceSquared(pos);
+            candidates.push({distSq, spline});
+        }
+
         let best = null;
-        for (let s of this.splines) {
-            let res = s.nearest(pos, maxDist);
-            if (res && res.distance < maxDist) {
-                maxDist = res.distance;
+        let maxDistSq = Number.MAX_VALUE;
+
+        candidates.sort((l, r) => l.distSq - r.distSq);
+        for (let c of candidates) {
+            if (c.distSq >= maxDistSq) continue;
+
+            let res = c.spline.nearest(pos);
+            c.spline.nearCheck = true;
+            if (res && res.distSq < maxDistSq) {
+                maxDistSq = res.distSq;
+                res.spline = c.spline;
                 best = res;
-                best.spline = s;
             }
         }
 

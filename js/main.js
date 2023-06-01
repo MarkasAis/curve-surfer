@@ -18,6 +18,8 @@ s.connectNodes(a, b);
 
 let player = new Player(new Vec2(300, 100));
 
+let camera = new Camera(CANVAS);
+
 CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
 
 Input.init();
@@ -106,16 +108,23 @@ function update(deltaTime) {
     }
 }
 
+camera.position.addX(1);
+camera.zoom = 1;
+
 function render(deltaTime) {
-    CTX.fillStyle = '#011627';
-    CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
-    s.render(deltaTime);
+    camera.clear('#011627');
+    // s.render(deltaTime);
 
-    let mousePos = Input.getMousePos(CANVAS);
-    let res = s.nearest(mousePos);
-    if (res) s.renderPathInfo(res.spline, res.t);
+    // let mousePos = Input.getMousePos(CANVAS);
+    // let res = s.nearest(mousePos);
+    // if (res) s.renderPathInfo(res.spline, res.t);
 
-    player.render(deltaTime);
+    // player.render(deltaTime);
+
+    camera.zoom += deltaTime;
+    camera.position.addX(deltaTime * 0.1);
+    camera.circle(new Vec2(0, 0), 0.5, { fill: '#fff' });
+    camera.circle(new Vec2(1, 0), 0.5, { fill: '#ff0000' });
 }
 
 const UPDATES_PER_SECOND = 60;

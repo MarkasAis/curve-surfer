@@ -123,7 +123,7 @@ function render(deltaTime) {
 
     camera.zoom += deltaTime;
     camera.position.addX(deltaTime * 0.1);
-    camera.rect(new Vec2(0.5, 0), new Vec2(2, 1), { fill: '#00ff00', stroke: '#fff' });
+    camera.rect(new Vec2(0.5, 0), new Vec2(2, 1), { fill: '#00ff00', stroke: '#000', strokeWidth: 10 });
     camera.circle(new Vec2(0, 0), 0.5, { fill: '#fff' });
     camera.circle(new Vec2(1, 0), 0.5, { fill: '#ff0000' });
 }

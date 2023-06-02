@@ -6,6 +6,39 @@ class Camera {
         this.position = Vec2.ZERO;
         this.zoom = 1;
         this.verticalZoom = true;
+
+        this.fill = false;
+        this.stroke = false;
+    }
+
+    setFillColor(color) {
+        if (color) {
+            this.fill = true;
+            this.ctx.fillStyle = color;
+        } else {
+            this.fill = false;
+        }
+    }
+
+    setStrokeColor(color) {
+        if (color) {
+            this.stroke = true;
+            this.ctx.strokeStyle = color;
+        } else {
+            this.stroke = false;
+        }
+    }
+
+    setStrokeWidth(width) {
+        this.ctx.lineWidth = width;
+    }
+
+    setStyle(style) {
+        if (!style) return;
+
+        this.setFillColor(style.fill);
+        this.setStrokeColor(style.stroke);
+        if (style.strokeWidth != undefined) this.setStrokeWidth(style.strokeWidth);
     }
 
     clear(color) {
@@ -17,34 +50,31 @@ class Camera {
         }
     }
 
-    circle(pos, radius, { fill, stroke }) {
+    circle(pos, radius, style) {
         pos = this.worldPosToCanvas(pos);
         radius = this.worldScaleToCanvas(radius);
 
-        this.#setColors(fill, stroke);
+        this.setStyle(style);
         this.ctx.beginPath();
         this.ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        this.#draw(fill, stroke);
+        this.#draw();
     }
 
-    rect(pos, size) {
+    rect(pos, size, style) {
         pos = this.worldPosToCanvas(pos);
         size = this.worldScaleToCanvas(size);
 
         let start = Vec2.sub(pos, Vec2.mult(size, 0.5));
 
+        this.setStyle(style);
         this.ctx.beginPath();
         this.ctx.rect(start.x, start.y, size.x, size.y);
+        this.#draw();
     }
 
-    #setColors(fill, stroke) {
-        if (fill) this.ctx.fillStyle = fill;
-        if (stroke) this.ctx.strokeStyle = stroke;
-    }
-
-    #draw(fill, stroke) {
-        if (fill) this.ctx.fill();
-        if (stroke) this.ctx.stroke();
+    #draw() { console.log(this.ctx.strokeStyle);
+        if (this.fill) CTX.fill();
+        if (this.stroke) CTX.stroke();
     }
 
     worldPosToCanvas(pos) {

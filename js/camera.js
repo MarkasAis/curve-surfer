@@ -72,7 +72,23 @@ class Camera {
         this.#draw();
     }
 
-    #draw() { console.log(this.ctx.strokeStyle);
+    poly(positions, loop, style) {
+        this.setStyle(style);
+        this.ctx.beginPath();
+
+        let start = this.worldPosToCanvas(positions[0]);
+        this.ctx.moveTo(start.x, start.y);
+
+        for (let i = 1; i < positions.length; i++) {
+            let pos = this.worldPosToCanvas(positions[i]);
+            this.ctx.lineTo(pos.x, pos.y);
+        }
+
+        if (loop) this.ctx.lineTo(start.x, start.y);
+        this.#draw();
+    }
+
+    #draw() {
         if (this.fill) CTX.fill();
         if (this.stroke) CTX.stroke();
     }

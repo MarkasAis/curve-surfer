@@ -121,27 +121,26 @@ class Segment {
         return best;
     }
 
-    render() {
-        this.renderArrow();
-        this.renderCurve();
-        if (this.nearCheck) this.renderLines();
-        this.aabb.render(this.nearCheck, false);
+    render(camera, deltaTime) {
+        // this.renderArrow();
+        this.renderCurve(camera);
+        // if (this.nearCheck) this.renderLines();
+        // this.aabb.render(this.nearCheck, false);
     }
 
-    renderCurve() {
+    renderCurve(camera) {
         const SEGMENT_COUNT = 30;
-        CTX.beginPath();
-        CTX.strokeStyle = '#FDFFFC';
-        CTX.lineWidth = 2;
-        CTX.moveTo(this.from.x, this.from.y);
+
+        let positions = [];
+        positions.push(this.from);
 
         for (let i = 0; i <= SEGMENT_COUNT; i++) {
             let t = i / SEGMENT_COUNT;
             let pos = this.evaluate(t);
-            CTX.lineTo(pos.x, pos.y);
+            positions.push(pos);
         }
 
-        CTX.stroke();
+        camera.poly(positions, false, { stroke: '#FDFFFC', strokeWidth: 2 });
     }
 
     renderLines() {
@@ -265,7 +264,7 @@ class Spline {
         let dist = Number.MAX_VALUE;
         if (prev) dist = Math.min(dist, Vec2.dist(prev._position, pos) * 0.5);
         if (next) dist = Math.min(dist, Vec2.dist(next._position, pos) * 0.5);
-        if (dist == Number.MAX_VALUE) dist = 100;
+        if (dist == Number.MAX_VALUE) dist = 1;
 
         let node = new ControlNode(pos, dir, dist);
         node.spline = this;
@@ -404,21 +403,21 @@ class Spline {
         CTX.fill();
     }
 
-    render(deltaTime) {
+    render(camera, deltaTime) {
         for (let i = 0; i < this.nodes.length-1; i++) {
             let segment = this.segments[i];
-            segment.render();
+            segment.render(camera, deltaTime);
         }
 
         if (this.isClosed) {
             let segment = this.segments[this.nodes.length-1];
-            segment.render();
+            segment.render(camera, deltaTime);
         }
 
-        this.aabb.render(true, true);
+        // this.aabb.render(true, true);
 
         for (let n of this.nodes)
-            n.render(deltaTime);
+            n.render(camera, deltaTime);
     }
 }
 
@@ -506,15 +505,15 @@ class MultiSpline {
         return null;
     }
 
-    render(deltaTime) {
+    render(camera, deltaTime) {
         for (let s of this.splines)
-            s.render(deltaTime);
+            s.render(camera, deltaTime);
     }
 }
 
 class ControlNode extends Circle {
-    constructor(pos, handleDir=Vec2.LEFT, handleDist=100) {
-        super(pos, 10);
+    constructor(pos, handleDir=Vec2.LEFT, handleDist=1) {
+        super(pos, 0.075);
 
         this.spline = null;
 
@@ -558,20 +557,21 @@ class ControlNode extends Circle {
         this.spline.onNodeUpdated(this);
     }
 
-    render() {
-        CTX.beginPath();
-        CTX.strokeStyle = '#e40066';
-        CTX.lineWidth = 3;
-        CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
-        CTX.fillStyle = '#FDFFFC';
-        CTX.fill();
+    render(camera, deltaTime) {
+        camera.circle(this._position, this.radius*0.7, { fill: '#FDFFFC' });
+        // CTX.beginPath();
+        // CTX.strokeStyle = '#e40066';
+        // CTX.lineWidth = 3;
+        // CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
+        // CTX.fillStyle = '#FDFFFC';
+        // CTX.fill();
 
-        if (this.showHandles) CTX.stroke(); 
+        // if (this.showHandles) CTX.stroke(); 
 
-        if (this.showHandles) {
-            if (!this.isFirst) this.handlePrev.render(true);
-            if (!this.isLast) this.handleNext.render(true); 
-        }
+        // if (this.showHandles) {
+        //     if (!this.isFirst) this.handlePrev.render(true);
+        //     if (!this.isLast) this.handleNext.render(true); 
+        // }
     }
 }
 

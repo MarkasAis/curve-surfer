@@ -22,19 +22,29 @@ class Camera {
         radius = this.worldScaleToCanvas(radius);
 
         this.#setColors(fill, stroke);
-        CTX.beginPath();
-        CTX.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
         this.#draw(fill, stroke);
     }
 
+    rect(pos, size) {
+        pos = this.worldPosToCanvas(pos);
+        size = this.worldScaleToCanvas(size);
+
+        let start = Vec2.sub(pos, Vec2.mult(size, 0.5));
+
+        this.ctx.beginPath();
+        this.ctx.rect(start.x, start.y, size.x, size.y);
+    }
+
     #setColors(fill, stroke) {
-        if (fill) CTX.fillStyle = fill;
-        if (stroke) CTX.strokeStyle = stroke;
+        if (fill) this.ctx.fillStyle = fill;
+        if (stroke) this.ctx.strokeStyle = stroke;
     }
 
     #draw(fill, stroke) {
-        if (fill) CTX.fill();
-        if (stroke) CTX.stroke();
+        if (fill) this.ctx.fill();
+        if (stroke) this.ctx.stroke();
     }
 
     worldPosToCanvas(pos) {
@@ -56,6 +66,13 @@ class Camera {
     }
 
     worldScaleToCanvas(scale) {
+        if (scale instanceof Vec2) {
+            return new Vec2(
+                this.worldScaleToCanvas(scale.x),
+                this.worldScaleToCanvas(scale.y)
+            );
+        }
+
         let unit = this.verticalZoom ? this.canvas.height : this.canvas.width;
         return Maths.map(0, this.zoom, 0, unit, scale);
     }

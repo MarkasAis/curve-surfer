@@ -117,10 +117,16 @@ class Segment {
     }
 
     render(camera) {
-        this.renderArrow(camera);
+        if (Debug.SPLINE_ORDER)
+            this.renderArrow(camera);
+
         this.renderCurve(camera);
-        if (this.nearCheck) this.renderLines(camera);
-        this.aabb.render(camera, this.nearCheck, false);
+
+        if (Debug.COLLISION_LINES && this.nearCheck)
+            this.renderLines(camera);
+
+        if (Debug.COLLISION_AABB)
+            this.aabb.render(camera, this.nearCheck, false);
     }
 
     renderCurve(camera) {
@@ -341,7 +347,7 @@ class Spline {
 
     renderPathInfo(camera, t) {
         let pos = this.evaluate(t);
-        camera.circle(pos, 0.025, { fill: '#00ff00' });
+        camera.circle(pos, 0.025, { fill: '#e40066' });
     }
 
     render(camera) {
@@ -355,7 +361,8 @@ class Spline {
             segment.render(camera);
         }
 
-        this.aabb.render(camera, true, true);
+        if (Debug.COLLISION_AABB)
+            this.aabb.render(camera, true, true);
 
         for (let n of this.nodes)
             n.render(camera);

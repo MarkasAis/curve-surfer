@@ -72,6 +72,29 @@ class Camera {
         this.#draw();
     }
 
+    bounds(min, max, style) {
+        let pos = Vec2.mult(Vec2.add(min, max), 0.5);
+        let size = Vec2.sub(max, min);
+        this.rect(pos, size, style);
+    }
+
+    arrow(from, to, style) {
+        this.setStyle(style);
+        this.line(from, to);
+
+        let offset = style.arrowOffset != undefined ? style.arrowOffset : 0;
+        let angle = style.arrowAngle != undefined ? style.arrowAngle : 30;
+        let length = style.arrowLength != undefined ? style.arrowLength : 0.1;
+        
+        let dir = Vec2.sub(from, to).normalized;
+        let side = Vec2.mult(dir, length);
+        let mid = Vec2.add(to, Vec2.mult(dir, offset));
+        let left = Vec2.add(mid, Vec2.rotateByDeg(side, angle));
+        let right = Vec2.add(mid, Vec2.rotateByDeg(side, -angle));
+
+        this.poly([left, mid, right], false);
+    }
+
     poly(positions, loop, style) {
         this.setStyle(style);
         this.ctx.beginPath();
@@ -88,9 +111,21 @@ class Camera {
         this.#draw();
     }
 
+    line(from, to, style) {
+        from = this.worldPosToCanvas(from);
+        to = this.worldPosToCanvas(to);
+
+        this.setStyle(style);
+        this.ctx.beginPath();
+
+        this.ctx.moveTo(from.x, from.y);
+        this.ctx.lineTo(to.x, to.y);
+        this.#draw();
+    }
+
     #draw() {
-        if (this.fill) CTX.fill();
-        if (this.stroke) CTX.stroke();
+        if (this.fill) this.ctx.fill();
+        if (this.stroke) this.ctx.stroke();
     }
 
     worldPosToCanvas(pos) {
@@ -109,6 +144,25 @@ class Camera {
                 Maths.map(-0.5*ratio, 0.5*ratio, this.canvas.height, 0, pos.y)
             );
         }
+    }
+
+    canvasPosToWorld(pos) {
+        if (this.verticalZoom) {
+            let ratio = this.canvas.width / this.canvas.height;
+            pos = new Vec2(
+                Maths.map(0, this.canvas.width, -0.5*ratio, 0.5*ratio, pos.x),
+                Maths.map(this.canvas.height, 0, -0.5, 0.5, pos.y)
+            );
+        } else {
+            let ratio = this.canvas.height / this.canvas.width;
+            pos = new Vec2(
+                Maths.map(0, this.canvas.width, -0.5, 0.5, pos.x),
+                Maths.map(this.canvas.height, 0, -0.5*ratio, 0.5*ratio, pos.y)
+            );
+        }
+
+        pos = Vec2.add(Vec2.mult(pos, this.zoom), this.position)
+        return pos;
     }
 
     worldScaleToCanvas(scale) {

@@ -14,12 +14,9 @@ class AABB {
         return dx*dx + dy*dy;
     }
 
-    render(active=true, highlight=false) {
-        CTX.strokeStyle = active ? '#00ff00' : '#ff0000';
-        CTX.lineWidth = highlight ? 2 : 1;
-        let width = this.max.x - this.min.x;
-        let height = this.max.y - this.min.y;
-        CTX.strokeRect(this.min.x, this.min.y, width, height);
+    render(camera, active=true, highlight=false) {
+        let style = { stroke: active ? '#00ff00' : '#ff0000', strokeWidth: highlight ? 2 : 1 };
+        camera.bounds(this.min, this.max, style);
     }
 
     static fromPositions(positions) {

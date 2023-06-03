@@ -25,13 +25,8 @@ class Line {
         }
     }
 
-    render() {
-        CTX.beginPath();
-        CTX.strokeStyle = '#00ff00';
-        CTX.lineWidth = 2;
-        CTX.moveTo(this.from.x, this.from.y);
-        CTX.lineTo(this.to.x, this.to.y);
-        CTX.stroke();
+    render(camera) {
+        camera.line(this.from, this.to, { stroke: '#00ff00', strokeWidth: 2 });
     }
 }
 
@@ -121,11 +116,11 @@ class Segment {
         return best;
     }
 
-    render(camera, deltaTime) {
-        // this.renderArrow();
+    render(camera) {
+        this.renderArrow(camera);
         this.renderCurve(camera);
-        // if (this.nearCheck) this.renderLines();
-        // this.aabb.render(this.nearCheck, false);
+        if (this.nearCheck) this.renderLines(camera);
+        this.aabb.render(camera, this.nearCheck, false);
     }
 
     renderCurve(camera) {
@@ -143,65 +138,15 @@ class Segment {
         camera.poly(positions, false, { stroke: '#FDFFFC', strokeWidth: 2 });
     }
 
-    renderLines() {
+    renderLines(camera) {
         for (let l of this.lines)
-            l.render();
+            l.render(camera);
     }
 
-    renderArrow(dashed=false) {
+    renderArrow(camera) {
         let from = this.from._position;
         let to = this.to._position;
-
-        // line
-        CTX.beginPath();
-        CTX.strokeStyle = '#FDFFFC33';
-        CTX.lineWidth = 2;
-
-        CTX.moveTo(from.x, from.y);
-
-        if (dashed) {
-            const DASH_LENGTH = 20;
-            const GAP_LENGTH = 10;
-
-            let totalDist = Vec2.dist(from, to);
-            let dir = Vec2.sub(to, from).normalized;
-
-            let cur = from;
-
-            function step(length) {
-                let stepLength = Math.min(length, totalDist);
-                totalDist -= stepLength;
-                cur = Vec2.add(cur, Vec2.mult(dir, stepLength));
-            }
-
-            while (totalDist > 0) {
-                step(DASH_LENGTH);
-                CTX.lineTo(cur.x, cur.y);
-                step(GAP_LENGTH);
-                CTX.moveTo(cur.x, cur.y);
-            }
-
-        } else {
-            CTX.lineTo(to.x, to.y);
-        }
-        
-        
-        CTX.stroke();
-
-        // arrow
-        let dir = Vec2.sub(from, to).normalized;
-        let offset = Vec2.mult(dir, 10 + 10);
-        let mid = Vec2.add(to, Vec2.mult(dir, 10));
-        let left = Vec2.add(to, Vec2.rotateByDeg(offset, 20));
-        let right = Vec2.add(to, Vec2.rotateByDeg(offset, -20));
-
-        CTX.beginPath();
-        CTX.strokeStyle = '#FDFFFC33';
-        CTX.lineWidth = 2;
-        CTX.moveTo(left.x, left.y);
-        CTX.lineTo(mid.x, mid.y);
-        CTX.lineTo(right.x, right.y);
-        CTX.stroke();
+        camera.arrow(from, to, { stroke: '#FDFFFC33', strokeWidth: 2, arrowOffset: 0.05 });
     }
 }
 
@@ -394,30 +339,26 @@ class Spline {
         return null;
     }
 
-    renderPathInfo(t) {
+    renderPathInfo(camera, t) {
         let pos = this.evaluate(t);
-
-        CTX.beginPath();
-        CTX.fillStyle = "#00ff00";
-        CTX.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
-        CTX.fill();
+        camera.circle(pos, 0.025, { fill: '#00ff00' });
     }
 
-    render(camera, deltaTime) {
+    render(camera) {
         for (let i = 0; i < this.nodes.length-1; i++) {
             let segment = this.segments[i];
-            segment.render(camera, deltaTime);
+            segment.render(camera);
         }
 
         if (this.isClosed) {
             let segment = this.segments[this.nodes.length-1];
-            segment.render(camera, deltaTime);
+            segment.render(camera);
         }
 
-        // this.aabb.render(true, true);
+        this.aabb.render(camera, true, true);
 
         for (let n of this.nodes)
-            n.render(camera, deltaTime);
+            n.render(camera);
     }
 }
 
@@ -475,8 +416,8 @@ class MultiSpline {
         return best;
     }
 
-    renderPathInfo(spline, t) {
-        spline.renderPathInfo(t);
+    renderPathInfo(camera, spline, t) {
+        spline.renderPathInfo(camera, t);
     }
 
     connectNodes(from, to) {
@@ -505,9 +446,9 @@ class MultiSpline {
         return null;
     }
 
-    render(camera, deltaTime) {
+    render(camera) {
         for (let s of this.splines)
-            s.render(camera, deltaTime);
+            s.render(camera);
     }
 }
 
@@ -557,27 +498,21 @@ class ControlNode extends Circle {
         this.spline.onNodeUpdated(this);
     }
 
-    render(camera, deltaTime) {
-        camera.circle(this._position, this.radius*0.7, { fill: '#FDFFFC' });
-        // CTX.beginPath();
-        // CTX.strokeStyle = '#e40066';
-        // CTX.lineWidth = 3;
-        // CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
-        // CTX.fillStyle = '#FDFFFC';
-        // CTX.fill();
+    render(camera) {
+        let style = { fill: '#FDFFFC' };
+        if (this.showHandles) style.stroke = '#e40066';
+        camera.circle(this._position, this.radius*0.7, style);
 
-        // if (this.showHandles) CTX.stroke(); 
-
-        // if (this.showHandles) {
-        //     if (!this.isFirst) this.handlePrev.render(true);
-        //     if (!this.isLast) this.handleNext.render(true); 
-        // }
+        if (this.showHandles) {
+            if (!this.isFirst) this.handlePrev.render(camera);
+            if (!this.isLast) this.handleNext.render(camera); 
+        }
     }
 }
 
 class Handle extends Circle {
     constructor(control, pos) {
-        super(pos, 10);
+        super(pos, 0.075);
         this.control = control;
     }
 
@@ -586,17 +521,8 @@ class Handle extends Circle {
         this.control.onHandleMove(this);
     }
 
-    render(highlight) {
-        CTX.beginPath();
-        CTX.strokeStyle = highlight ? '#e40066' : '#FDFFFC';
-        CTX.lineWidth = 2;
-        CTX.arc(this._position.x, this._position.y, this.radius*0.5, 0, Math.PI * 2);
-        CTX.stroke();
-
-        CTX.beginPath();
-        CTX.lineWidth = 1;
-        CTX.moveTo(this._position.x, this._position.y);
-        CTX.lineTo(this.control._position.x, this.control._position.y);
-        CTX.stroke();
+    render(camera) {
+        camera.circle(this._position, this.radius * 0.5, { stroke: '#e40066', strokeWidth: 2 });
+        camera.line(this._position, this.control._position, { stroke: '#e40066', strokeWidth: 1 });
     }
 }

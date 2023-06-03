@@ -1,5 +1,8 @@
-const CANVAS = document.querySelector('#canvas');
-const CTX = CANVAS.getContext('2d');
+let canvas = document.querySelector('#canvas');
+canvas.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
+let camera = new Camera(canvas);
+
+Input.init();
 
 const DRAG_THRESHOLD = 3;
 
@@ -18,11 +21,7 @@ s.connectNodes(a, b);
 
 let player = new Player(new Vec2(300, 100));
 
-let camera = new Camera(CANVAS);
 
-CANVAS.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); }
-
-Input.init();
 
 // function setActiveAnchor(anchor) {
 //     if (activeAnchor) activeAnchor.isActive = false;
@@ -42,7 +41,7 @@ function update(deltaTime) {
     Input.update();
 
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.LEFT)) {
-        let mousePos = Input.getMousePos(CANVAS);
+        let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
 
         dragStart = mousePos;
         isDragging = false;
@@ -84,7 +83,7 @@ function update(deltaTime) {
     }
 
     if (dragObject) {
-        let mousePos = Input.getMousePos(CANVAS);
+        let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
 
         if (!isDragging && Vec2.squareDistance(dragStart, mousePos) > DRAG_THRESHOLD*DRAG_THRESHOLD) {
             isDragging = true;
@@ -99,7 +98,7 @@ function update(deltaTime) {
     }
 
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
-        let mousePos = Input.getMousePos(CANVAS);
+        let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
         setSelectedAnchor(null);
 
         let selected = s.select(mousePos);
@@ -115,17 +114,17 @@ function render(deltaTime) {
     camera.clear('#011627');
     s.render(camera, deltaTime);
 
-    let mousePos = Input.getMousePos(CANVAS);
-    // mousePos = 
+    let mousePos = Input.getMousePos(canvas);
+    mousePos = camera.canvasPosToWorld(mousePos);
     let res = s.nearest(mousePos);
-    if (res) s.renderPathInfo(res.spline, res.t);
+    if (res) s.renderPathInfo(camera, res.spline, res.t);
 
     // player.render(deltaTime);
 
     camera.zoom += deltaTime * 0.1;
     // camera.position.addX(deltaTime * 0.1);
     // camera.rect(new Vec2(0.5, 0), new Vec2(2, 1), { fill: '#00ff00', stroke: '#000', strokeWidth: 10 });
-    // camera.circle(new Vec2(0, 0), 0.5, { fill: '#fff' });
+    // camera.circle(mousePos, 0.01, { fill: '#fff' });
     // camera.circle(new Vec2(1, 0), 0.5, { fill: '#ff0000' });
     // camera.poly([new Vec2(0, 0), new Vec2(1, 1), new Vec2(1, 0)], true, { stroke: '#fff' });
 }

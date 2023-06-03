@@ -91,9 +91,32 @@ class Segment {
             Vec2.mult(this.coefficients[1], t),
             Vec2.mult(this.coefficients[2], t*t),
             Vec2.mult(this.coefficients[3], t*t*t)
-        )
+        );
 
         return position;
+    }
+
+    evaluateFirstDerivative(t) {
+        let result = Vec2.addAll(
+            this.coefficients[1],
+            Vec2.mult(this.coefficients[2], 2*t),
+            Vec2.mult(this.coefficients[3], 3*t*t)
+        );
+
+        return result;
+    }
+
+    tangent(t) {
+        return this.evaluateFirstDerivative(t).normalized;
+    }
+
+    normal(t) {
+        let res = this.tangent(t);
+        let temp = res.x;
+        res.x = -res.y;
+        res.y = temp;
+
+        return res;
     }
 
     nearest(pos) {
@@ -152,7 +175,7 @@ class Segment {
     renderArrow(camera) {
         let from = this.from._position;
         let to = this.to._position;
-        camera.arrow(from, to, { stroke: '#FDFFFC33', strokeWidth: 2, arrowOffset: 0.05 });
+        camera.arrow(from, to, { stroke: '#FDFFFC33', strokeWidth: 2, arrowOffset: 0.2625 });
     }
 }
 
@@ -215,7 +238,7 @@ class Spline {
         let dist = Number.MAX_VALUE;
         if (prev) dist = Math.min(dist, Vec2.dist(prev._position, pos) * 0.5);
         if (next) dist = Math.min(dist, Vec2.dist(next._position, pos) * 0.5);
-        if (dist == Number.MAX_VALUE) dist = 1;
+        if (dist == Number.MAX_VALUE) dist = 5;
 
         let node = new ControlNode(pos, dir, dist);
         node.spline = this;
@@ -337,6 +360,16 @@ class Spline {
         return res.segment.evaluate(res.t);
     }
 
+    tangent(t) {
+        let res = this.#toSegment(t);
+        return res.segment.tangent(res.t);
+    }
+
+    normal(t) {
+        let res = this.#toSegment(t);
+        return res.segment.normal(res.t);
+    }
+
     select(pos) {
         for (let n of this.nodes) {
             let selected = n.select(pos);
@@ -347,7 +380,15 @@ class Spline {
 
     renderPathInfo(camera, t) {
         let pos = this.evaluate(t);
-        camera.circle(pos, 0.025, { fill: '#e40066' });
+        let tangent = this.tangent(t);
+        let normal = this.normal(t);
+
+        let tangentTo = Vec2.add(pos, Vec2.mult(tangent, 2));
+        let normalTo = Vec2.add(pos, Vec2.mult(normal, 2));
+        
+        camera.arrow(pos, tangentTo, { stroke: '#e4be00', strokeWidth: 2 });
+        camera.arrow(pos, normalTo, { stroke: '#00afe4', strokeWidth: 2 });
+        camera.circle(pos, 0.125, { fill: '#fff' });
     }
 
     render(camera) {
@@ -460,8 +501,8 @@ class MultiSpline {
 }
 
 class ControlNode extends Circle {
-    constructor(pos, handleDir=Vec2.LEFT, handleDist=1) {
-        super(pos, 0.075);
+    constructor(pos, handleDir=Vec2.LEFT, handleDist=5) {
+        super(pos, 0.375);
 
         this.spline = null;
 
@@ -519,7 +560,7 @@ class ControlNode extends Circle {
 
 class Handle extends Circle {
     constructor(control, pos) {
-        super(pos, 0.075);
+        super(pos, 0.375);
         this.control = control;
     }
 

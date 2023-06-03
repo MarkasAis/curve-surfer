@@ -14,11 +14,11 @@ let dragObject = null;
 let selectedAnchor = null;
 
 let s = new MultiSpline();
-let a = s.addNode(new Vec2(1, 1));
-let b = s.addNode(new Vec2(3, 3));
+let a = s.addNode(new Vec2(5, 5));
+let b = s.addNode(new Vec2(15, 15));
 s.connectNodes(a, b);
 
-let player = new Player(new Vec2(300, 100));
+let player = new Player(new Vec2(10, 15));
 
 function setSelectedAnchor(anchor) {
     if (selectedAnchor) selectedAnchor.showHandles = false;
@@ -35,6 +35,8 @@ function update(deltaTime) {
     let zoom = Input.getGesture(Input.Gesture.ZOOM) * 0.01;
     camera.zoom += zoom;
     if (camera.zoom < 0.1) camera.zoom = 0.1;
+
+    player.update(deltaTime);
 
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.LEFT)) {
         let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
@@ -103,19 +105,19 @@ function update(deltaTime) {
     }
 }
 
-camera.position = new Vec2(2, 2);
-camera.zoom = 3;
+camera.position = new Vec2(10, 10);
+camera.zoom = 20;
 
 function render(deltaTime) {
     camera.clear('#011627');
-    s.render(camera, deltaTime);
+    s.render(camera);
 
     let mousePos = Input.getMousePos(canvas);
     mousePos = camera.canvasPosToWorld(mousePos);
     let res = s.nearest(mousePos);
     if (res) s.renderPathInfo(camera, res.spline, res.t);
 
-    // player.render(deltaTime);
+    player.render(camera);
 }
 
 const UPDATES_PER_SECOND = 60;

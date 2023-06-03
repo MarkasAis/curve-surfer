@@ -19,11 +19,7 @@ class Circle {
         return null;
     }
 
-    render(deltaTime) {
-        CTX.beginPath();
-        CTX.fillStyle = '#e40066';
-        CTX.lineWidth = 3;
-        CTX.arc(this._position.x, this._position.y, this.radius*0.7, 0, Math.PI * 2);
-        CTX.fill();
+    render(camera) {
+        camera.circle(this._position, this.radius, { fill: '#e40066' });
     }
 }

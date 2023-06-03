@@ -2,6 +2,14 @@ class Input {
     static #keyStates = {};
     static #mouseStates = {};
     static #mouseClientPos = Vec2.ZERO;
+    static #gesture = {
+        zoom: 0,
+        move: Vec2.ZERO
+    };
+    static #nextGesture = {
+        zoom: 0,
+        move: Vec2.ZERO
+    };
     static #currentFrame = 0;
 
     static #getKeyState(key) {
@@ -47,17 +55,35 @@ class Input {
             let state = Input.#getMouseState(e.button);
             state.isDown = true;
             state.downFrame = Input.#currentFrame+1;
-        })
+        });
 
         document.addEventListener('mouseup', e => {
             let state = Input.#getMouseState(e.button);
             state.isDown = false;
             state.upFrame = Input.#currentFrame+1;
-        })
+        });
+
+        // Setup wheel
+        document.addEventListener('wheel', e => {
+            e.preventDefault();
+            if (e.ctrlKey) {
+                Input.#nextGesture.zoom += e.deltaY;
+            } else {
+                Input.#nextGesture.move.x += e.deltaX;
+                Input.#nextGesture.move.y -= e.deltaY;
+            }
+        }, {passive: false});
     }
 
     static update() {
         Input.#currentFrame++;
+
+        Input.#gesture.zoom = Input.#nextGesture.zoom;
+        Input.#gesture.move.copy(Input.#nextGesture.move);
+
+        Input.#nextGesture.zoom = 0;
+        Input.#nextGesture.move.x = 0;
+        Input.#nextGesture.move.y = 0;
     }
 
     static getKeyDown(key) {
@@ -95,9 +121,23 @@ class Input {
             Maths.map(0, canvas.height, 1, -1, pos[1])
         );
     }
+
+    static getGesture(type) {
+        switch(type) {
+            case Input.Gesture.ZOOM:
+                return this.#gesture.zoom;
+            case Input.Gesture.MOVE:
+                return this.#gesture.move;
+        }
+    }
 }
 
 Input.MouseButton = {
     LEFT: 0,
     RIGHT: 2
-}
+};
+
+Input.Gesture = {
+    ZOOM: 0,
+    MOVE: 1
+};

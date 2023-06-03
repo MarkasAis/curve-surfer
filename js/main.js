@@ -12,7 +12,6 @@ let dragOffset;
 let dragObject = null;
 
 let selectedAnchor = null;
-// let activeAnchor = null;
 
 let s = new MultiSpline();
 let a = s.addNode(new Vec2(1, 1));
@@ -21,24 +20,21 @@ s.connectNodes(a, b);
 
 let player = new Player(new Vec2(300, 100));
 
-
-
-// function setActiveAnchor(anchor) {
-//     if (activeAnchor) activeAnchor.isActive = false;
-//     activeAnchor = anchor;
-//     if (activeAnchor) activeAnchor.isActive = true;
-// } 
-
 function setSelectedAnchor(anchor) {
     if (selectedAnchor) selectedAnchor.showHandles = false;
     selectedAnchor = anchor;
     if (selectedAnchor) selectedAnchor.showHandles = true;
 }
 
-
-
 function update(deltaTime) {
     Input.update();
+
+    let move = Vec2.mult(Input.getGesture(Input.Gesture.MOVE), 0.01);
+    camera.position.add(move);
+
+    let zoom = Input.getGesture(Input.Gesture.ZOOM) * 0.01;
+    camera.zoom += zoom;
+    if (camera.zoom < 0.1) camera.zoom = 0.1;
 
     if (Input.getMouseButtonDownThisFrame(Input.MouseButton.LEFT)) {
         let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
@@ -120,13 +116,6 @@ function render(deltaTime) {
     if (res) s.renderPathInfo(camera, res.spline, res.t);
 
     // player.render(deltaTime);
-
-    camera.zoom += deltaTime * 0.1;
-    // camera.position.addX(deltaTime * 0.1);
-    // camera.rect(new Vec2(0.5, 0), new Vec2(2, 1), { fill: '#00ff00', stroke: '#000', strokeWidth: 10 });
-    // camera.circle(mousePos, 0.01, { fill: '#fff' });
-    // camera.circle(new Vec2(1, 0), 0.5, { fill: '#ff0000' });
-    // camera.poly([new Vec2(0, 0), new Vec2(1, 1), new Vec2(1, 0)], true, { stroke: '#fff' });
 }
 
 const UPDATES_PER_SECOND = 60;

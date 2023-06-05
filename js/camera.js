@@ -79,20 +79,20 @@ class Camera {
     }
 
     arrow(from, to, style) {
-        this.setStyle(style);
-        this.line(from, to);
-
         let offset = style.arrowOffset != undefined ? style.arrowOffset : 0;
         let angle = style.arrowAngle != undefined ? style.arrowAngle : 30;
         let length = style.arrowLength != undefined ? style.arrowLength : 0.3;
         
         let dir = Vec2.sub(from, to).normalized;
-        let side = Vec2.mult(dir, length);
-        let mid = Vec2.add(to, Vec2.mult(dir, offset));
-        let left = Vec2.add(mid, Vec2.rotateByDeg(side, angle));
-        let right = Vec2.add(mid, Vec2.rotateByDeg(side, -angle));
+        to = Vec2.add(to, Vec2.mult(dir, offset));
 
-        this.poly([left, mid, right], false);
+        let side = Vec2.mult(dir, length);
+        let left = Vec2.add(to, Vec2.rotateByDeg(side, angle));
+        let right = Vec2.add(to, Vec2.rotateByDeg(side, -angle));
+
+        this.setStyle(style);
+        this.line(from, to);
+        this.poly([left, to, right], false);
     }
 
     poly(positions, loop, style) {

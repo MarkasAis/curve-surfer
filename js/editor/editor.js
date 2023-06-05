@@ -7,7 +7,8 @@ class Editor {
 
         this.currentContext = Editor.ContextType.DEFAULT;
 
-        this.cameraController = new EditorCameraController(camera);
+        this.camera = camera;
+        this.cameraController = new EditorCameraController(this.camera);
     }
 
     getCurrentContext() {
@@ -16,6 +17,11 @@ class Editor {
 
     update(deltaTime) {
         this.getCurrentContext().update(deltaTime);
+        this.cameraController.update(deltaTime);
+    }
+
+    getMouseWorldPos() {
+        return this.camera.canvasPosToWorld(Input.getMousePos(this.camera.canvas));
     }
 
     select(pos) {
@@ -25,11 +31,11 @@ class Editor {
                 let requiredContext = res.customEditor != undefined ? res.customEditor : Editor.ContextType.DEFAULT;
                 if (this.switchContext(requiredContext, res)) return null;
                 return res;
-            } else {
-                this.switchContext(Editor.ContextType.DEFAULT, null);
-                return null;
             }
         }
+
+        this.switchContext(Editor.ContextType.DEFAULT, null);
+                return null;
     }
 
     switchContext(type, obj) {

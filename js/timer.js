@@ -13,7 +13,7 @@ class Timer {
     }
 
     start() {
-        this.lastTime = (new Date).getTime();
+        this.lastTime = 0;
         this.accumulator = 0;
         this.requestLoop();
     }
@@ -29,7 +29,7 @@ class Timer {
     }
 
     loop(time) {
-        const deltaTime = (time - this.lastTime) / 1000;
+        let deltaTime = (time - this.lastTime) / 1000;
 
         if (deltaTime < this.pauseThreshold) {
             this.accumulator += deltaTime;

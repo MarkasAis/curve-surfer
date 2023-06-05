@@ -12,8 +12,12 @@ camera.zoom = 20;
 
 class CustomLine {
     constructor(from, to) {
-        this.from = new Circle(from);
-        this.to = new Circle(to);
+        this.from = new Circle(from, 0.3);
+        this.to = new Circle(to, 0.3, { stroke: '#fff', strokeWidth: 2 });
+    }
+
+    select(pos) {
+        return this.from.select(pos) || this.to.select(pos);
     }
 
     render(camera) {

@@ -38,7 +38,7 @@ class Camera {
 
         this.setFillColor(style.fill);
         this.setStrokeColor(style.stroke);
-        if (style.strokeWidth != undefined) this.setStrokeWidth(style.strokeWidth);
+        this.setStrokeWidth(style.strokeWidth != undefined ? style.strokeWidth : 1);
     }
 
     clear(color) {

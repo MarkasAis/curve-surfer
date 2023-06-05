@@ -4,6 +4,7 @@ class Editor {
 
         this.contexts = {};
         this.contexts[Editor.ContextType.DEFAULT] = new DefaultContext(this);
+        this.contexts[Editor.ContextType.SPLINE] = new SplineContext(this);
 
         this.currentContext = Editor.ContextType.DEFAULT;
 
@@ -20,22 +21,29 @@ class Editor {
         this.cameraController.update(deltaTime);
     }
 
+    render() {
+        for (let obj of this.scene.objects)
+        obj.renderEditor(this.camera);
+    }
+
     getMouseWorldPos() {
         return this.camera.canvasPosToWorld(Input.getMousePos(this.camera.canvas));
     }
 
-    select(pos) {
+    select(pos, shouldSwitchContext=true) {
         for (let obj of this.scene.objects) {
             let res = obj.select(pos);
             if (res) {
                 let requiredContext = res.customEditor != undefined ? res.customEditor : Editor.ContextType.DEFAULT;
-                if (this.switchContext(requiredContext, res)) return null;
+                if (shouldSwitchContext && this.switchContext(requiredContext, res)) return null;
                 return res;
             }
         }
 
-        this.switchContext(Editor.ContextType.DEFAULT, null);
-                return null;
+        if (shouldSwitchContext)
+            this.switchContext(Editor.ContextType.DEFAULT, null);
+        
+        return null;
     }
 
     switchContext(type, obj) {

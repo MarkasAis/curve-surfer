@@ -401,6 +401,10 @@ class Spline {
             let segment = this.segments[this.nodes.length-1];
             segment.render(camera);
         }
+    }
+
+    renderEditor(camera) {
+        this.render(camera);
 
         if (Debug.COLLISION_AABB)
             this.aabb.render(camera, true, true);
@@ -410,7 +414,7 @@ class Spline {
     }
 }
 
-class MultiSpline {
+class MultiSpline extends GameObject {
     splines = [];
     aabb = null;
 
@@ -498,13 +502,22 @@ class MultiSpline {
         for (let s of this.splines)
             s.render(camera);
     }
+
+    renderEditor(camera) {
+        for (let s of this.splines)
+            s.renderEditor(camera);
+    }
 }
 
 class ControlNode extends Circle {
     constructor(pos, handleDir=Vec2.LEFT, handleDist=5) {
         super(pos, 0.375);
+        this.customEditor = Editor.ContextType.SPLINE;
 
         this.spline = null;
+
+        this.isFirst = false;
+        this.isLast = false;
 
         let handlePrevPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, -handleDist));
         let handleNextPos = Vec2.add(this._position, Vec2.mult(handleDir.normalized, handleDist));
@@ -515,7 +528,7 @@ class ControlNode extends Circle {
     }
 
     isInner() {
-        return this.nodePrev && this.nodeNext;
+        return !this.isFirst && !this.isLast;
     }
 
     setPosition(pos) {
@@ -561,6 +574,8 @@ class ControlNode extends Circle {
 class Handle extends Circle {
     constructor(control, pos) {
         super(pos, 0.375);
+        this.customEditor = Editor.ContextType.SPLINE;
+
         this.control = control;
     }
 

@@ -1,70 +1,66 @@
-class SplineEditor {
+class SplineContext extends DefaultContext {
 
-    update(deltaTime) {
-        if (Input.getMouseButtonDownThisFrame(Input.MouseButton.LEFT)) {
-            let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
-    
-            dragStart = mousePos;
-            isDragging = false;
-    
-            dragObject = player.select(mousePos);
-            if (!dragObject) dragObject = s.select(mousePos);
-    
-            if (selectedAnchor && Input.getKeyDown('Shift')) {
-    
-                if (dragObject) {
-                    if (dragObject instanceof ControlNode && !selectedAnchor.isInner() && !dragObject.isInner()) {
-                        s.connectNodes(selectedAnchor, dragObject);
-                        setSelectedAnchor(dragObject);
-                    } else {
-                        setSelectedAnchor(null);
-                    }
-                    dragObject = null;
-                } else if (!selectedAnchor.isInner()) {
-                    let newNode = s.addNodeConnected(mousePos, selectedAnchor);
-                    setSelectedAnchor(newNode);
-                } else {
-                    setSelectedAnchor(null);
-                }
-    
-            }
-    
-            else if (dragObject) {
-                if (dragObject instanceof ControlNode) {
-                    setSelectedAnchor(dragObject);
-                } else if (!(dragObject instanceof Handle)) {
-                    setSelectedAnchor(null);
-                }
-    
-    
-                dragOffset = Vec2.sub(dragObject.getPosition(), mousePos);
-            } else {
-                setSelectedAnchor(null);
-            }
-        }
-    
-        if (dragObject) {
-            let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
-    
-            if (!isDragging && Vec2.squareDistance(dragStart, mousePos) > DRAG_THRESHOLD*DRAG_THRESHOLD) {
-                isDragging = true;
-            }
-    
-            dragObject.setPosition(Vec2.add(mousePos, dragOffset));
-        }
-    
-        if (Input.getMouseButtonUpThisFrame(Input.MouseButton.LEFT)) {
-            dragObject = null;
-            isDragging = false;
-        }
-    
-        if (Input.getMouseButtonDownThisFrame(Input.MouseButton.RIGHT)) {
-            let mousePos = camera.canvasPosToWorld(Input.getMousePos(canvas));
-            setSelectedAnchor(null);
-    
-            let selected = s.select(mousePos);
-            if (selected instanceof ControlNode)
-                s.removeNode(selected);
+    selectedControl = null;
+
+    setSelectedControl(control) {
+        if (this.selectedControl) this.selectedControl.showHandles = false;
+        this.selectedControl = control;
+        if (this.selectedControl) this.selectedControl.showHandles = true;
+    }
+
+    primaryAction() {
+        if (this.selectedControl && Input.getKeyDown('Shift')) {
+            if (this.attemptExtendSpline()) return;
+        } 
+
+        this.attemptSelect();
+    }
+
+    secondaryAction() {
+        let mousePos = this.editor.getMouseWorldPos();
+        this.select(null);
+
+        let target = this.editor.select(mousePos, false);
+        if (target instanceof ControlNode) {
+            target.spline.multispline.removeNode(target);
         }
     }
+
+    getCurrentSpline() {
+        if (!this.selectedControl) return null;
+        return this.selectedControl.spline.multispline;
+    }
+
+    attemptExtendSpline() {
+        let mousePos = this.editor.getMouseWorldPos();
+        let target = this.editor.select(mousePos, false);
+
+        let spline = this.getCurrentSpline();
+
+        if (target && target instanceof ControlNode) {
+            if (!this.selectedControl.isInner() && !target.isInner()) {
+                spline.connectNodes(this.selectedControl, target);
+                this.select(target);
+                return true;
+            }
+        } else if (!this.selectedControl.isInner()) {
+            let newNode = spline.addNodeConnected(mousePos, this.selectedControl);
+            this.select(newNode);
+            return true;
+        }
+        
+        return false;
+    }
+
+    select(obj) {
+        super.select(obj);
+
+        if (!obj) this.setSelectedControl(null);
+        else if (obj instanceof ControlNode) this.setSelectedControl(obj);
+    }
+
+    onEnd() {
+        this.setSelectedControl(null);
+    }
+
 }

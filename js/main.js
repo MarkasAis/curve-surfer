@@ -10,8 +10,9 @@ let editor = new Editor(scene, camera);
 camera.position = new Vec2(10, 10);
 camera.zoom = 20;
 
-class CustomLine {
+class CustomLine extends GameObject {
     constructor(from, to) {
+        super();
         this.from = new Circle(from, 0.3);
         this.to = new Circle(to, 0.3, { stroke: '#fff', strokeWidth: 2 });
     }
@@ -21,7 +22,7 @@ class CustomLine {
     }
 
     render(camera) {
-        camera.arrow(this.from._position, this.to._position, { stroke: '#fff', arrowOffset: 0.3 });
+        camera.arrow(this.from._position, this.to._position, { stroke: '#fff', strokeWidth: 2, arrowOffset: 0.3 });
         this.from.render(camera);
         this.to.render(camera);
     }
@@ -49,7 +50,7 @@ function update(deltaTime) {
 
 function render() {
     camera.clear('#011627');
-    scene.render(camera);
+    editor.render();
 }
 
 const timer = new Timer(update, render);

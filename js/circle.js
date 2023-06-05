@@ -1,7 +1,8 @@
 class Circle {
-    constructor(pos, radius) {
+    constructor(pos, radius=0.4, style={ fill: '#fff' }) {
         this._position = pos;
         this.radius = radius;
+        this.style = style;
     }
 
     getPosition() {
@@ -20,6 +21,6 @@ class Circle {
     }
 
     render(camera) {
-        camera.circle(this._position, this.radius, { fill: '#e40066' });
+        camera.circle(this._position, this.radius, this.style);
     }
 }

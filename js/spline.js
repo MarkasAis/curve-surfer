@@ -589,3 +589,10 @@ class Handle extends Circle {
         camera.line(this._position, this.control._position, { stroke: '#e40066', strokeWidth: 1 });
     }
 }
+
+/*
+nearestToPoint
+nearestToLine
+nearestIntersect
+
+*/

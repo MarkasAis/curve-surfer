@@ -14,7 +14,7 @@ class Line {
     nearest(pos) {
         let v = Vec2.sub(pos, this.from);
         let d = Vec2.dot(v, this.dir);
-        d = Maths.clamp(d, 0, this.length);
+        // d = Maths.clamp(d, 0, this.length);
 
         let target = Vec2.add(this.from, Vec2.mult(this.dir, d));
         let t = d / this.length;
@@ -510,6 +510,73 @@ class MultiSpline extends GameObject {
             }
 
             return null;
+        }
+        function chooseBest(best, res) {
+            if (!res) return best;
+            if (!best) return res;
+            if (res.t < best.t) return res;
+            return best;
+        }
+
+        let traverser = new Traverser(selectCandidates, discriminator, computeLeaf, chooseBest);
+        return traverser.traverse(this);
+    }
+
+    nearest3(from, to, radius) {
+        let line = new Line(from, to);
+
+        function selectCandidates(objs) { return objs; }
+        function discriminator(obj) { return true; };
+        function computeLeaf(obj) {
+            
+            let v0 = Vec2.sub(obj.from, from);
+            let pr0 = Vec2.add(from, Vec2.mult(line.dir, Vec2.dot(line.dir, v0)));
+
+            let v1 = Vec2.sub(pr0, obj.from);
+            let pr1 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v1)));
+
+            let v2 = Vec2.sub(from, obj.from);
+            let pr2 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v2)));
+
+            let d1 = Vec2.dist(pr0, pr1);
+            let d2 = Vec2.dist(from, pr2);
+
+            let t = Maths.inverseLerp(d1, d2, radius);
+            let v = Vec2.sub(from, pr0);
+            let adj = Vec2.add(pr0, Vec2.mult(v, t));
+
+            // if pr1 beyond line do endpoint offset!!!!!!!!!!!!!
+
+            // res.p2 = p;
+
+            // let s = Vec2.sub(obj.to, from);
+            // let pr1 = Vec2.add(from, Vec2.mult(line.dir, Vec2.dot(line.dir, s)));
+            
+
+            
+
+            // // res.test = pr1;
+
+            // let d1 = Vec2.dist(obj.to, pr1);
+            // let d2 = Vec2.dist(obj.from, pr2);
+
+            // let t = Maths.inverseLerp(d2, d1, radius); console.log(t);
+
+            // let v = Vec2.sub(from, pr2);
+
+            // let adj = Vec2.add(pr2, Vec2.mult(v, t));
+
+            // // if (Vec2. > radius*radius) return null;
+
+            // let o = Math.sqrt(radius*radius-Vec2.squareDistance(pr2, obj.from));
+            // let p = Vec2.sub(pr2, Vec2.mult(line.dir, o));
+
+            return {
+                pos: pr2,
+                p: adj,
+                p2: null,
+                test: null
+            };
         }
         function chooseBest(best, res) {
             if (!res) return best;

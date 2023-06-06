@@ -104,13 +104,22 @@ class CustomLine extends GameObject {
             let v = Vec2.sub(to, from);
 
             this.b2 = Vec2.sub(to, Vec2.mult(v, t));
-
-            this.test = pr1;
         }
     }
 
     updateC() {
+        let from = this.getFrom();
+        let to = this.getTo();
+        
+        let res = spline.nearest3(from, to, this.radius);
+        if (res) {
+            this.c1 = res.pos;
+            this.c2 = res.p;
 
+            this.b2 = res.p2;
+
+            this.test = res.test;
+        }
     }
 
     render(camera) {
@@ -120,10 +129,12 @@ class CustomLine extends GameObject {
         
         if (this.a1) camera.circle(this.a1, 0.2, { fill: '#00ff00' });
         if (this.b1) camera.circle(this.b1, 0.2, { fill: '#ff0000' });
+        if (this.c1) camera.circle(this.c1, 0.2, { fill: '#0000ff' });
         if (this.test) camera.circle(this.test, 0.2, { fill: '#ffff00' });
 
-        if (this.a2) camera.circle(this.a2, this.radius, { stroke: '#00ff00', strokeWidth: 2 });
+        // if (this.a2) camera.circle(this.a2, this.radius, { stroke: '#00ff00', strokeWidth: 2 });
         if (this.b2) camera.circle(this.b2, this.radius, { stroke: '#ff0000', strokeWidth: 2 });
+        if (this.c2) camera.circle(this.c2, this.radius, { stroke: '#0000ff', strokeWidth: 2 });
     }
 }
 

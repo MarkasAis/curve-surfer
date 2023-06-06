@@ -9,6 +9,8 @@ class Line {
             this.dir.divide(this.length);
     }
 
+    isLeaf() { return true; }
+
     nearest(pos) {
         let v = Vec2.sub(pos, this.from);
         let d = Vec2.dot(v, this.dir);
@@ -20,6 +22,7 @@ class Line {
 
         return {
             pos: target,
+            other: this,
             t: t,
             distSq: distSq
         }
@@ -42,6 +45,9 @@ class Segment {
 
         this.update();
     }
+
+    isLeaf() { return false; }
+    getChildren() { return this.lines; }
 
     update() {
         this.updateAABB();
@@ -69,7 +75,7 @@ class Segment {
     }
 
     updateLines() {
-        const NUM_LINES = 10;
+        const NUM_LINES = 1;
 
         this.lines = [];
         let prevPos = this.evaluate(0);
@@ -145,7 +151,7 @@ class Segment {
 
         this.renderCurve(camera);
 
-        if (Debug.COLLISION_LINES && this.nearCheck)
+        if (Debug.COLLISION_LINES)
             this.renderLines(camera);
 
         if (Debug.COLLISION_AABB)
@@ -202,6 +208,9 @@ class Spline {
 
         this.#updateSegments();
     }
+
+    isLeaf() { return false; }
+    getChildren() { return this.segments; }
 
     #updateSegments() {
         this.segments = [];
@@ -418,6 +427,9 @@ class MultiSpline extends GameObject {
     splines = [];
     aabb = null;
 
+    isLeaf() { return false; }
+    getChildren() { return this.splines; }
+
     addNode(pos) {
         let spline = new Spline();
         spline.multispline = this;
@@ -439,33 +451,75 @@ class MultiSpline extends GameObject {
         this.splines = this.splines.filter(s => s != spline);
     }
 
+    // nearestOld(pos) {
+    //     let candidates = [];
+
+    //     for (let i = 0; i < this.splines.length; i++) {
+    //         let spline = this.splines[i];
+    //         spline.nearCheck = false;
+    //         let distSq = spline.aabb.distanceSquared(pos);
+    //         candidates.push({distSq, spline});
+    //     }
+
+    //     let best = null;
+    //     let maxDistSq = Number.MAX_VALUE;
+
+    //     candidates.sort((l, r) => l.distSq - r.distSq);
+    //     for (let c of candidates) {
+    //         if (c.distSq >= maxDistSq) continue;
+
+    //         let res = c.spline.nearest(pos);
+    //         c.spline.nearCheck = true;
+    //         if (res && res.distSq < maxDistSq) {
+    //             maxDistSq = res.distSq;
+    //             res.spline = c.spline;
+    //             best = res;
+    //         }
+    //     }
+
+    //     return best;
+    // }
+
     nearest(pos) {
-        let candidates = [];
+        function selectCandidates(objs) { return objs; }
+        function discriminator(obj) { return true; };
+        function computeLeaf(obj) { return obj.nearest(pos); }
+        function chooseBest(best, res) { if (res.distSq < best.distSq) return res;
+        return best; }
 
-        for (let i = 0; i < this.splines.length; i++) {
-            let spline = this.splines[i];
-            spline.nearCheck = false;
-            let distSq = spline.aabb.distanceSquared(pos);
-            candidates.push({distSq, spline});
-        }
+        let traverser = new Traverser(selectCandidates, discriminator, computeLeaf, chooseBest);
+        return traverser.traverse(this);
+    }
 
-        let best = null;
-        let maxDistSq = Number.MAX_VALUE;
+    nearest2(from, to) {
+        function selectCandidates(objs) { return objs; }
+        function discriminator(obj) { return true; };
+        function computeLeaf(obj) {
+            let s1 = Vec2.sub(to, from);
+            let s2 = Vec2.sub(obj.to, obj.from);
 
-        candidates.sort((l, r) => l.distSq - r.distSq);
-        for (let c of candidates) {
-            if (c.distSq >= maxDistSq) continue;
+            let s = (-s1.y * (from.x - obj.from.x) + s1.x * (from.y - obj.from.y)) / (-s2.x * s1.y + s1.x * s2.y);
+            let t = (s2.x * (from.y - obj.from.y) - s2.y * (from.x - obj.from.x)) / (-s2.x * s1.y + s1.x * s2.y);
 
-            let res = c.spline.nearest(pos);
-            c.spline.nearCheck = true;
-            if (res && res.distSq < maxDistSq) {
-                maxDistSq = res.distSq;
-                res.spline = c.spline;
-                best = res;
+            if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+                return {
+                    pos: Vec2.add(from, Vec2.mult(s1, t)),
+                    other: obj,
+                    t: t
+                }
             }
+
+            return null;
+        }
+        function chooseBest(best, res) {
+            if (!res) return best;
+            if (!best) return res;
+            if (res.t < best.t) return res;
+            return best;
         }
 
-        return best;
+        let traverser = new Traverser(selectCandidates, discriminator, computeLeaf, chooseBest);
+        return traverser.traverse(this);
     }
 
     renderPathInfo(camera, spline, t) {
@@ -589,10 +643,3 @@ class Handle extends Circle {
         camera.line(this._position, this.control._position, { stroke: '#e40066', strokeWidth: 1 });
     }
 }
-
-/*
-nearestToPoint
-nearestToLine
-nearestIntersect
-
-*/

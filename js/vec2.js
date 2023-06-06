@@ -492,6 +492,12 @@ class Vec2 {
     let next = others.shift();
     return Vec2.addAll(Vec2.add(vector, next), ...others);
   }
+
+  static multAll(vector, ...others) {
+    if (others.length == 0) return vector;
+    let next = others.shift();
+    return Vec2.multAll(Vec2.mult(vector, next), ...others);
+  }
 }
 
 Object.defineProperty(Vec2.prototype, "width", {

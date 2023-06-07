@@ -19,10 +19,6 @@ class CustomLine extends GameObject {
         this.toHandle = new Circle(to, this.radius, { stroke: '#fff', strokeWidth: 2 });
 
         this.a = null;
-        this.b = null;
-        this.c = null;
-
-        this.test = null;
     }
 
     getFrom() {
@@ -40,10 +36,7 @@ class CustomLine extends GameObject {
     update(deltaTime) {
         let from = this.getFrom();
         let to = this.getTo();
-
-        this.a = spline.nearest(from, to, this.radius);
-        this.b = spline.nearest2(from, to, this.radius);
-        this.c = spline.nearest3(from, to, this.radius);
+        this.a = Collision.collide(spline, from, to, this.radius);
     }
 
     render(camera) {
@@ -67,8 +60,6 @@ class CustomLine extends GameObject {
         }
 
         ren(this.a, '#ff0000');
-        ren(this.b, '#00ff00');
-        ren(this.c, '#0000ff');
     }
 }
 

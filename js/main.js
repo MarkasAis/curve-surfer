@@ -43,23 +43,7 @@ class CustomLine extends GameObject {
 
         this.a = spline.nearest(from, to, this.radius);
         this.b = spline.nearest2(from, to, this.radius);
-        // this.c = spline.nearest3(from, to);
-    }
-
-    updateC() {
-        let from = this.getFrom();
-        let to = this.getTo();
-
-        this.c1 = null;
-        this.c2 = null;
-        
-        let res = spline.nearest3(from, to, this.radius);
-        if (res) {
-            this.c1 = res.pos;
-            this.c2 = res.p;
-
-            this.test = res.test;
-        }
+        this.c = spline.nearest3(from, to, this.radius);
     }
 
     render(camera) {

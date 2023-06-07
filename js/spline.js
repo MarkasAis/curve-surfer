@@ -9,6 +9,10 @@ class Line {
             this.dir.divide(this.length);
     }
 
+    get reversed() {
+        return new Line(this.to, this.from);
+    }
+
     isLeaf() { return true; }
 
     nearest(pos) {
@@ -451,37 +455,6 @@ class MultiSpline extends GameObject {
         this.splines = this.splines.filter(s => s != spline);
     }
 
-    // nearestOld(pos) {
-    //     let candidates = [];
-
-    //     for (let i = 0; i < this.splines.length; i++) {
-    //         let spline = this.splines[i];
-    //         spline.nearCheck = false;
-    //         let distSq = spline.aabb.distanceSquared(pos);
-    //         candidates.push({distSq, spline});
-    //     }
-
-    //     let best = null;
-    //     let maxDistSq = Number.MAX_VALUE;
-
-    //     candidates.sort((l, r) => l.distSq - r.distSq);
-    //     for (let c of candidates) {
-    //         if (c.distSq >= maxDistSq) continue;
-
-    //         let res = c.spline.nearest(pos);
-    //         c.spline.nearCheck = true;
-    //         if (res && res.distSq < maxDistSq) {
-    //             maxDistSq = res.distSq;
-    //             res.spline = c.spline;
-    //             best = res;
-    //         }
-    //     }
-
-    //     return best;
-    // }
-
-    // t, hitPos
-
     nearest(from, to, radius) {  // do for all (check aabb intersection)
         function selectCandidates(objs) { return objs; }
         function discriminator(obj) { return true; };
@@ -579,47 +552,54 @@ class MultiSpline extends GameObject {
 
         function selectCandidates(objs) { return objs; }
         function discriminator(obj) { return true; };
-        function computeLeaf(obj) {
-            
+        function helper(obj) {
             let v0 = Vec2.sub(obj.from, from);
             let t0 = Vec2.dot(line.dir, v0);
-            let pr0 = Vec2.add(from, Vec2.mult(line.dir, t0));
+            let p0 = Vec2.add(from, Vec2.mult(line.dir, t0));
 
-            let v1 = Vec2.sub(pr0, obj.from);
-            let pr1 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v1)));
+            let v1 = Vec2.sub(p0, obj.from);
+            let p1 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v1)));
 
             let v2 = Vec2.sub(from, obj.from);
-            let pr2 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v2)));
+            let p2 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v2)));
 
-            let d1 = Vec2.dist(pr0, pr1);
-            let d2 = Vec2.dist(from, pr2);
+            let d1 = Vec2.dist(p0, p1);
+            let d2 = Vec2.dist(from, p2);
 
-            let t1 = Maths.inverseLerp(d1, d2, radius);
-            let v3 = Vec2.sub(from, pr0);
-            let adj1 = Vec2.add(pr0, Vec2.mult(v3, t1));
+            let t1 = Maths.inverseLerp(d2, d1, radius) * (t0 / line.length);
+            let v3 = Vec2.sub(to, from);
+            let adj1 = Vec2.add(from, Vec2.mult(v3, t1));
 
-            if (Vec2.dist(obj.from, pr0) > radius || t0 < 0 || t0 > line.length) return null;
+            if (Vec2.dist(obj.from, p0) > radius || t0 < 0 || t0 > line.length) return null;
 
             let v4 = Vec2.sub(adj1, obj.from);
             let t2 = Vec2.dot(obj.dir, v4);
 
+            if (t2 > 0 && t2 < obj.length && d1 < d2) {
+                let p3 = Vec2.add(obj.from, Vec2.mult(obj.dir, t2));
 
+                return {
+                    hitPos: p3,
+                    t: t1
+                }
+            }
 
-            let o = Math.sqrt(radius*radius-Vec2.squareDistance(pr0, obj.from));
-            let adj2 = Vec2.sub(pr0, Vec2.mult(line.dir, o));
-
-            let adjFinal = t2 > 0 && d1 < d2 ? adj1 : adj2;
+            let d3 = Math.sqrt(radius*radius-Vec2.squareDistance(p0, obj.from));
+            let t3 = (t0 - d3) / line.length
 
             return {
-                pos: pr2,
-                p: adjFinal,
-                p2: null,
-                test: pr1
-            };
+                hitPos: obj.from,
+                t: t3
+            }
+        }
+        function computeLeaf(obj) {
+            let res1 = helper(obj);
+            let res2 = helper(obj.reversed);
+            if (!res1) return res2;
+            if (!res2) return res1;
+            return res1.t < res2.t ? res1 : res2;
         }
         function chooseBest(best, res) {
-            if (!res) return best;
-            if (!best) return res;
             if (res.t < best.t) return res;
             return best;
         }

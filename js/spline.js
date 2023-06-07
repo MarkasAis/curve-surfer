@@ -480,12 +480,48 @@ class MultiSpline extends GameObject {
     //     return best;
     // }
 
-    nearest(pos) {
+    // t, hitPos
+
+    nearest(from, to, radius) {  // do for all (check aabb intersection)
         function selectCandidates(objs) { return objs; }
         function discriminator(obj) { return true; };
-        function computeLeaf(obj) { return obj.nearest(pos); }
-        function chooseBest(best, res) { if (res.distSq < best.distSq) return res;
-        return best; }
+        function computeLeaf(obj) {
+            let v1 = Vec2.sub(to, obj.from);
+            let t1 = Vec2.dot(v1, obj.dir);
+
+            // if (t1 < 0 || t1 > obj.length) return null;
+
+            let pr1 = Vec2.add(obj.from, Vec2.mult(obj.dir, t1));
+            let d1 = Vec2.dist(to, pr1);
+
+            if (d1 > radius) return null;
+
+            let v2 = Vec2.sub(from, obj.from);
+            let t2 = Vec2.dot(v2, obj.dir);
+            let pr2 = Vec2.add(obj.from, Vec2.mult(obj.dir, t2));
+            let d2 = Vec2.dist(from, pr2);
+
+            let t3 = Maths.inverseLerp(d2, d1, radius);
+            let v3 = Vec2.sub(to, from);
+            let pr3 = Vec2.add(from, Vec2.mult(v3, t3));
+
+            let v4 = Vec2.sub(pr3, obj.from);
+            let t4 = Vec2.dot(v4, obj.dir);
+
+            if (t4 < 0 || t4 > obj.length) return null;
+
+            let pr4 = Vec2.add(obj.from, Vec2.mult(obj.dir, t4));
+
+            return {
+                t: t3,
+                hitPos: pr4
+            }
+        }
+
+        function chooseBest(best, res) {
+            if (res.t < best.t) return res;
+            return best; 
+        }
 
         let traverser = new Traverser(selectCandidates, discriminator, computeLeaf, chooseBest);
         return traverser.traverse(this);
@@ -530,7 +566,8 @@ class MultiSpline extends GameObject {
         function computeLeaf(obj) {
             
             let v0 = Vec2.sub(obj.from, from);
-            let pr0 = Vec2.add(from, Vec2.mult(line.dir, Vec2.dot(line.dir, v0)));
+            let t0 = Vec2.dot(line.dir, v0);
+            let pr0 = Vec2.add(from, Vec2.mult(line.dir, t0));
 
             let v1 = Vec2.sub(pr0, obj.from);
             let pr1 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v1)));
@@ -541,41 +578,27 @@ class MultiSpline extends GameObject {
             let d1 = Vec2.dist(pr0, pr1);
             let d2 = Vec2.dist(from, pr2);
 
-            let t = Maths.inverseLerp(d1, d2, radius);
-            let v = Vec2.sub(from, pr0);
-            let adj = Vec2.add(pr0, Vec2.mult(v, t));
+            let t1 = Maths.inverseLerp(d1, d2, radius);
+            let v3 = Vec2.sub(from, pr0);
+            let adj1 = Vec2.add(pr0, Vec2.mult(v3, t1));
 
-            // if pr1 beyond line do endpoint offset!!!!!!!!!!!!!
+            if (Vec2.dist(obj.from, pr0) > radius || t0 < 0 || t0 > line.length) return null;
 
-            // res.p2 = p;
+            let v4 = Vec2.sub(adj1, obj.from);
+            let t2 = Vec2.dot(obj.dir, v4);
 
-            // let s = Vec2.sub(obj.to, from);
-            // let pr1 = Vec2.add(from, Vec2.mult(line.dir, Vec2.dot(line.dir, s)));
-            
 
-            
 
-            // // res.test = pr1;
+            let o = Math.sqrt(radius*radius-Vec2.squareDistance(pr0, obj.from));
+            let adj2 = Vec2.sub(pr0, Vec2.mult(line.dir, o));
 
-            // let d1 = Vec2.dist(obj.to, pr1);
-            // let d2 = Vec2.dist(obj.from, pr2);
-
-            // let t = Maths.inverseLerp(d2, d1, radius); console.log(t);
-
-            // let v = Vec2.sub(from, pr2);
-
-            // let adj = Vec2.add(pr2, Vec2.mult(v, t));
-
-            // // if (Vec2. > radius*radius) return null;
-
-            // let o = Math.sqrt(radius*radius-Vec2.squareDistance(pr2, obj.from));
-            // let p = Vec2.sub(pr2, Vec2.mult(line.dir, o));
+            let adjFinal = t2 > 0 && d1 < d2 ? adj1 : adj2;
 
             return {
                 pos: pr2,
-                p: adj,
+                p: adjFinal,
                 p2: null,
-                test: null
+                test: pr1
             };
         }
         function chooseBest(best, res) {

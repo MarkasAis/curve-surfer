@@ -18,11 +18,9 @@ class CustomLine extends GameObject {
         this.fromHandle = new Circle(from, this.radius);
         this.toHandle = new Circle(to, this.radius, { stroke: '#fff', strokeWidth: 2 });
 
-        this.a1 = null;
-        this.a2 = null;
-
-        this.b1 = null;
-        this.b2 = null;
+        this.a = null;
+        this.b = null;
+        this.c = null;
 
         this.test = null;
     }
@@ -40,9 +38,16 @@ class CustomLine extends GameObject {
     }
 
     update(deltaTime) {
-        this.updateA();
-        this.updateB();
-        this.updateC();
+        // this.updateA();
+        // this.updateB();
+        // this.updateC();
+
+        let from = this.getFrom();
+        let to = this.getTo();
+
+        this.a = spline.nearest(from, to, this.radius);
+        // this.b = spline.nearest2(from, to);
+        // this.c = spline.nearest3(from, to);
     }
 
     updateA() {
@@ -110,13 +115,14 @@ class CustomLine extends GameObject {
     updateC() {
         let from = this.getFrom();
         let to = this.getTo();
+
+        this.c1 = null;
+        this.c2 = null;
         
         let res = spline.nearest3(from, to, this.radius);
         if (res) {
             this.c1 = res.pos;
             this.c2 = res.p;
-
-            this.b2 = res.p2;
 
             this.test = res.test;
         }
@@ -127,14 +133,24 @@ class CustomLine extends GameObject {
         this.fromHandle.render(camera);
         this.toHandle.render(camera);
         
-        if (this.a1) camera.circle(this.a1, 0.2, { fill: '#00ff00' });
-        if (this.b1) camera.circle(this.b1, 0.2, { fill: '#ff0000' });
-        if (this.c1) camera.circle(this.c1, 0.2, { fill: '#0000ff' });
-        if (this.test) camera.circle(this.test, 0.2, { fill: '#ffff00' });
+        let from = this.getFrom();
+        let to = this.getTo();
 
-        // if (this.a2) camera.circle(this.a2, this.radius, { stroke: '#00ff00', strokeWidth: 2 });
-        if (this.b2) camera.circle(this.b2, this.radius, { stroke: '#ff0000', strokeWidth: 2 });
-        if (this.c2) camera.circle(this.c2, this.radius, { stroke: '#0000ff', strokeWidth: 2 });
+        let toPos = (t) => {
+            let dir = Vec2.sub(to, from);
+            return Vec2.add(from, Vec2.mult(dir, t));
+        }
+
+        let ren = (p, col) => {
+            if (p) {
+                camera.circle(p.hitPos, 0.2, { fill: col });
+                camera.circle(toPos(p.t), this.radius, { stroke: col, strokeWidth: 2 });
+            }
+        }
+
+        ren(this.a, '#ff0000');
+        ren(this.b, '#00ff00');
+        ren(this.c, '#0000ff');
     }
 }
 

@@ -33,8 +33,8 @@ class Traverser {
             if (!this.discriminator(c)) continue;
 
             let res = this.traverse(c);
-            if (i == 0) best = res;
-            else best = this.chooseBest(best, res);
+            if (!best) best = res;
+            else if (res) best = this.chooseBest(best, res);
         }
 
         return best;

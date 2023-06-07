@@ -38,78 +38,12 @@ class CustomLine extends GameObject {
     }
 
     update(deltaTime) {
-        // this.updateA();
-        // this.updateB();
-        // this.updateC();
-
         let from = this.getFrom();
         let to = this.getTo();
 
         this.a = spline.nearest(from, to, this.radius);
-        // this.b = spline.nearest2(from, to);
+        this.b = spline.nearest2(from, to, this.radius);
         // this.c = spline.nearest3(from, to);
-    }
-
-    updateA() {
-        let from = this.getFrom();
-        let to = this.getTo();
-
-        let res = spline.nearest2(from, to);
-        this.a1 = res ? res.pos : null;
-        this.a2 = null;
-
-        if (res) {
-            let otherDir = Vec2.sub(res.other.to, res.other.from).normalized
-            let fc = Vec2.sub(from, res.other.from);
-            let pr = Vec2.add(res.other.from, Vec2.mult(otherDir, Vec2.dot(otherDir, fc)));
-
-            let ac = Vec2.dist(from, res.pos);
-            let pc = Vec2.dist(from, pr);
-
-            let v = Vec2.sub(to, from).normalized;
-
-            this.a2 = Vec2.sub(res.pos, Vec2.mult(v, this.radius * ac/pc));
-        }
-    }
-
-    updateB() {
-        let from = this.getFrom();
-        let to = this.getTo();
-        
-        let res = spline.nearest(to);
-        this.b1 = res.pos;
-        this.b2 = null;
-
-        // if (res.distSq <= this.radius*this.radius) {
-
-        //     let dir = Vec2.sub(from, to).normalized;
-        //     let toHit = Vec2.sub(res.pos, to);
-        //     let proj = Vec2.dot(dir, toHit);
-
-        //     let projected = Vec2.add(to, Vec2.mult(dir, proj));
-        //     let sqProjToHit = Vec2.squareDistance(projected, res.pos);
-        //     let offset = Math.sqrt(this.radius*this.radius - sqProjToHit);
-
-        //     this.b2 = Vec2.add(projected, Vec2.mult(dir, offset));
-        // }
-
-        if (res.distSq <= this.radius*this.radius) {
-            let otherDir = Vec2.sub(res.other.to, res.other.from).normalized
-            let fe = Vec2.sub(to, res.other.from);
-            let pr2 = Vec2.add(res.other.from, Vec2.mult(otherDir, Vec2.dot(otherDir, fe)));
-
-            let fs = Vec2.sub(from, res.other.from);
-            let pr1 = Vec2.add(res.other.from, Vec2.mult(otherDir, Vec2.dot(otherDir, fs)));
-
-            let d1 = Vec2.dist(from, pr1);
-            let d2 = Vec2.dist(to, pr2);
-
-            let t = Maths.inverseLerp(d2, d1, this.radius);
-
-            let v = Vec2.sub(to, from);
-
-            this.b2 = Vec2.sub(to, Vec2.mult(v, t));
-        }
     }
 
     updateC() {

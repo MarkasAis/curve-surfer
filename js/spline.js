@@ -527,29 +527,45 @@ class MultiSpline extends GameObject {
         return traverser.traverse(this);
     }
 
-    nearest2(from, to) {
+    nearest2(from, to, radius) {
         function selectCandidates(objs) { return objs; }
         function discriminator(obj) { return true; };
         function computeLeaf(obj) {
-            let s1 = Vec2.sub(to, from);
-            let s2 = Vec2.sub(obj.to, obj.from);
+            let v1 = Vec2.sub(to, from);
+            let v2 = Vec2.sub(obj.to, obj.from);
 
-            let s = (-s1.y * (from.x - obj.from.x) + s1.x * (from.y - obj.from.y)) / (-s2.x * s1.y + s1.x * s2.y);
-            let t = (s2.x * (from.y - obj.from.y) - s2.y * (from.x - obj.from.x)) / (-s2.x * s1.y + s1.x * s2.y);
+            let t1 = (-v1.y * (from.x - obj.from.x) + v1.x * (from.y - obj.from.y)) / (-v2.x * v1.y + v1.x * v2.y);
+            let t2 = (v2.x * (from.y - obj.from.y) - v2.y * (from.x - obj.from.x)) / (-v2.x * v1.y + v1.x * v2.y);
 
-            if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
-                return {
-                    pos: Vec2.add(from, Vec2.mult(s1, t)),
-                    other: obj,
-                    t: t
-                }
+            if (t1 < 0 || t1 > 1 || t2 < 0 || t2 > 1) return null;
+
+            let p1 = Vec2.add(from, Vec2.mult(v1, t2));
+
+            let v3 = Vec2.sub(from, obj.from);
+            let p2 = Vec2.add(obj.from, Vec2.mult(obj.dir, Vec2.dot(obj.dir, v3)));
+
+            let d1 = Vec2.dist(from, p1);
+            let d2 = Vec2.dist(from, p2);
+
+            let d3 = Vec2.dist(from, to);
+            let t3 = t2 - (radius * d1/d2) / d3;
+
+            let v4 = Vec2.sub(to, from);
+            let p3 = Vec2.add(from, Vec2.mult(v4, t3));
+
+            let v5 = Vec2.sub(p3, obj.from);
+            let t4 = Vec2.dot(v5, obj.dir);
+
+            if (t4 < 0 || t4 > obj.length) return null;
+
+            let p4 = Vec2.add(obj.from, Vec2.mult(obj.dir, t4)); 
+
+            return {
+                t: t3,
+                hitPos: p4
             }
-
-            return null;
         }
         function chooseBest(best, res) {
-            if (!res) return best;
-            if (!best) return res;
             if (res.t < best.t) return res;
             return best;
         }

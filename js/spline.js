@@ -15,22 +15,22 @@ class Line {
 
     isLeaf() { return true; }
 
-    nearest(pos) {
-        let v = Vec2.sub(pos, this.from);
-        let d = Vec2.dot(v, this.dir);
-        // d = Maths.clamp(d, 0, this.length);
+    // nearest(pos) {
+    //     let v = Vec2.sub(pos, this.from);
+    //     let d = Vec2.dot(v, this.dir);
+    //     // d = Maths.clamp(d, 0, this.length);
 
-        let target = Vec2.add(this.from, Vec2.mult(this.dir, d));
-        let t = d / this.length;
-        let distSq = Vec2.squareDistance(pos, target);
+    //     let target = Vec2.add(this.from, Vec2.mult(this.dir, d));
+    //     let t = d / this.length;
+    //     let distSq = Vec2.squareDistance(pos, target);
 
-        return {
-            pos: target,
-            other: this,
-            t: t,
-            distSq: distSq
-        }
-    }
+    //     return {
+    //         pos: target,
+    //         other: this,
+    //         t: t,
+    //         distSq: distSq
+    //     }
+    // }
 
     render(camera) {
         camera.line(this.from, this.to, { stroke: '#00ff00', strokeWidth: 2 });
@@ -79,7 +79,7 @@ class Segment {
     }
 
     updateLines() {
-        const NUM_LINES = 10;
+        const NUM_LINES = 1;
 
         this.lines = [];
         let prevPos = this.evaluate(0);

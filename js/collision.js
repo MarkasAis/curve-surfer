@@ -69,6 +69,7 @@ class Collision {
         let d2 = Vec2.dist(move.from, p2);
 
         let t3 = t2 - (radius * d1/d2) / move.length;
+        if (t3 < 0) return null;
 
         let v4 = Vec2.sub(move.to, move.from);
         let p3 = Vec2.add(move.from, Vec2.mult(v4, t3));
@@ -92,6 +93,8 @@ class Collision {
             let t0 = Vec2.dot(move.dir, v0);
             let p0 = Vec2.add(move.from, Vec2.mult(move.dir, t0));
 
+            if (Vec2.dist(line.from, p0) > radius || t0 < 0 || t0 > move.length + radius) return null;
+
             let v1 = Vec2.sub(p0, line.from);
             let p1 = Vec2.add(line.from, Vec2.mult(line.dir, Vec2.dot(line.dir, v1)));
 
@@ -102,15 +105,16 @@ class Collision {
             let d2 = Vec2.dist(move.from, p2);
 
             let t1 = Maths.inverseLerp(d2, d1, radius) * (t0 / move.length);
+
             let v3 = Vec2.sub(move.to, move.from);
             let adj1 = Vec2.add(move.from, Vec2.mult(v3, t1));
-
-            if (Vec2.dist(line.from, p0) > radius || t0 < 0 || t0 > move.length + radius) return null;
 
             let v4 = Vec2.sub(adj1, line.from);
             let t2 = Vec2.dot(line.dir, v4);
 
             if (t2 > 0 && t2 < line.length && d1 < d2) {
+                if (t1 < 0 || t1 > 1) return null;
+
                 let p3 = Vec2.add(line.from, Vec2.mult(line.dir, t2));
 
                 return {
@@ -121,6 +125,8 @@ class Collision {
 
             let d3 = Math.sqrt(radius*radius-Vec2.squareDistance(p0, line.from));
             let t3 = (t0 - d3) / move.length
+
+            if (t3 < 0 || t3 > 1) return null;
 
             return {
                 hitPos: line.from,

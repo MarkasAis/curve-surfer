@@ -1,5 +1,24 @@
 class Collision {
-    static collide(spline, from, to, radius) {
+    static move(spline, pos, velocity, radius, restitution=1) {
+        let to = Vec2.add(pos, velocity);
+        return Collision.moveHelper(spline, pos, to, velocity, radius, restitution, velocity);
+    }
+
+    static moveHelper(spline, from, to, velocity, radius, restitution) {
+        let collision = Collision.collide(spline, from, to, radius, restitution, velocity);
+        
+        if (!collision) {
+            return {
+                pos: to,
+                velocity: velocity
+            };
+        } else {
+            let newPos = Vec2.add(collision.objPos, collision.outTranslation);
+            return Collision.moveHelper(spline, collision.objPos, newPos, collision.outVelocity, radius, restitution);
+        }
+    }
+
+    static collide(spline, from, to, radius, restitution=1, velocity=Vec2.ZERO) {
         let move = new Line(from, to);
 
         let traverser = new Traverser(c => c, () => true, line => {
@@ -17,12 +36,12 @@ class Collision {
 
         let hit = traverser.traverse(spline);
         if (hit) {
-            let resolution = this.resolveCollision(hit, move);
+            let resolution = this.resolveCollision(hit, move, restitution, velocity);
 
             return {
                 objPos: hit.objPos,
-                // inTranslation: Vec2.sub(to, from),
                 outTranslation: resolution.outTranslation,
+                outVelocity: resolution.outVelocity,
 
                 hitPos: hit.hitPos,
                 hitNormal: resolution.hitNormal,
@@ -197,7 +216,7 @@ class Collision {
         return res1.objT < res2.objT ? res1 : res2;
     }
 
-    static resolveCollision(hit, move) {
+    static resolveCollision(hit, move, restitution, velocity) {
         if (!hit) return null;
 
         // let spline = hit.hitLine.segment.spline;
@@ -214,12 +233,14 @@ class Collision {
         }
 
         let outDir = Vec2.reflect(move.dir, normal);
-        let outTranslation = Vec2.mult(outDir, move.length * (1 - hit.objT));
+        let outVelocity = Vec2.mult(Vec2.reflect(velocity, normal), restitution);
+        let outTranslation = Vec2.mult(outDir, move.length * (1 - hit.objT) * restitution);
 
         return {
             hitNormal: normal,
             outDir: outDir,
-            outTranslation: outTranslation
+            outTranslation: outTranslation,
+            outVelocity: outVelocity
         };
     }
 

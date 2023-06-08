@@ -33,12 +33,6 @@ class CustomLine extends GameObject {
         return this.fromHandle.select(pos) || this.toHandle.select(pos);
     }
 
-    update(deltaTime) {
-        let from = this.getFrom();
-        let to = this.getTo();
-        
-    }
-
     renderBounce(from, to) { 
         let collision = Collision.collide(spline, from, to, this.radius);
         if (!collision) {
@@ -78,6 +72,11 @@ class CustomLine extends GameObject {
         let to = this.getTo();
 
         this.renderBounce(from, to);
+
+        let vel = Vec2.sub(to, from);
+        let move = Collision.move(spline, from, vel, this.radius, 1);
+        if (move)
+            camera.circle(move.pos, this.radius, { stroke: '#ff0000', strokeWidth: 2 });
     }
 }
 
@@ -86,10 +85,10 @@ class CustomLine extends GameObject {
 
 let spline = new MultiSpline();
 let p1 = spline.addNode(new Vec2(5, 5));
-let p2 = spline.addNode(new Vec2(15, 15));
+let p2 = spline.addNode(new Vec2(15, 6));
 spline.connectNodes(p1, p2);
 
-let player = new Player(new Vec2(10, 15));
+let player = new Player(new Vec2(10, 30));
 
 let customLine = new CustomLine(new Vec2(7, 15), new Vec2(13, 5));
 
@@ -101,12 +100,15 @@ let b = null;
 function update(deltaTime) {
     Input.update();
     editor.update(deltaTime);
-    customLine.update(deltaTime);
+
+    player.update(deltaTime);
 }
 
 function render() {
     camera.clear('#011627');
     editor.render();
+
+    player.render(camera);
 }
 
 const timer = new Timer(update, render);

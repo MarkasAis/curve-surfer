@@ -13,34 +13,44 @@ class Line {
         return new Line(this.to, this.from);
     }
 
-    isLeaf() { return true; }
-
-    // nearest(pos) {
-    //     let v = Vec2.sub(pos, this.from);
-    //     let d = Vec2.dot(v, this.dir);
-    //     // d = Maths.clamp(d, 0, this.length);
-
-    //     let target = Vec2.add(this.from, Vec2.mult(this.dir, d));
-    //     let t = d / this.length;
-    //     let distSq = Vec2.squareDistance(pos, target);
-
-    //     return {
-    //         pos: target,
-    //         other: this,
-    //         t: t,
-    //         distSq: distSq
-    //     }
-    // }
-
     render(camera) {
         camera.line(this.from, this.to, { stroke: '#00ff00', strokeWidth: 2 });
     }
 }
 
+class SplineLine extends Line {
+    constructor(segment, fromPos, toPos, fromT, toT) {
+        super(fromPos, toPos);
+        this.segment = segment;
+        this.fromT = fromT;
+        this.toT = toT;
+    }
+
+    toSegmentT(t) {
+        return Maths.lerp(this.fromT, this.toT, t);
+    }
+
+    toSplineT(t) {
+        let segmentT = this.toSegmentT(t);
+        return this.segment.toSplineT(segmentT);
+    }
+
+    get reversed() {
+        return new SplineLine(this.segment, this.to, this.from, this.toT, this.fromT);
+    }
+
+    isLeaf() { return true; }
+}
+
 class Segment {
-    constructor(from, to) {
-        this.from = from;
-        this.to = to;
+    constructor(spline, fromPos, toPos, fromT, toT) {
+        this.from = fromPos;
+        this.to = toPos;
+
+        this.spline = spline;
+        this.fromT = fromT;
+        this.toT = toT;
+
         this.aabb = null;
         this.coefficients = null;
         this.lines = [];
@@ -48,6 +58,10 @@ class Segment {
         this.nearCheck = false;
 
         this.update();
+    }
+
+    toSplineT(t) {
+        return Maths.lerp(this.fromT, this.toT, t);
     }
 
     isLeaf() { return false; }
@@ -79,18 +93,20 @@ class Segment {
     }
 
     updateLines() {
-        const NUM_LINES = 1;
+        const NUM_LINES = 10;
 
         this.lines = [];
-        let prevPos = this.evaluate(0);
+        let prevT = 0;
+        let prevPos = this.evaluate(prevT);
 
         for (let i = 1; i <= NUM_LINES; i++) {
             let t = i / NUM_LINES;
             let pos = this.evaluate(t);
 
-            let line = new Line(prevPos, pos);
+            let line = new SplineLine(this, prevPos, pos, prevT, t);
             this.lines.push(line);
 
+            prevT = t;
             prevPos = pos;
         }
     }
@@ -127,26 +143,6 @@ class Segment {
         res.y = temp;
 
         return res;
-    }
-
-    nearest(pos) {
-        let best = {
-            distSq: Number.MAX_VALUE,
-            pos: null,
-            t: 0
-        };
-
-        for (let i = 0; i < this.lines.length; i++) {
-            let tOffset = i / this.lines.length;
-            let res = this.lines[i].nearest(pos);
-
-            if (res.distSq < best.distSq) {
-                res.t = tOffset + res.t/this.lines.length;
-                best = res;
-            }
-        }
-
-        return best;
     }
 
     render(camera) {
@@ -213,6 +209,11 @@ class Spline {
         this.#updateSegments();
     }
 
+    isEndPoint(t) {
+        if (this.isClosed) return false;
+        return (t == 0 || t == this.segments.length)
+    }
+
     isLeaf() { return false; }
     getChildren() { return this.segments; }
 
@@ -221,9 +222,9 @@ class Spline {
         let segmentCount = this.isClosed ? this.nodes.length : this.nodes.length-1;
 
         for (let i = 0; i < segmentCount; i++) {
-            let from = this.getNode(i, true);
-            let to = this.getNode(i+1, true);
-            let segment = new Segment(from, to);
+            let fromPos = this.getNode(i, true);
+            let toPos = this.getNode(i+1, true);
+            let segment = new Segment(this, fromPos, toPos, i, i+1);
             this.segments.push(segment);
         }
 
@@ -317,36 +318,6 @@ class Spline {
     updateAABB() {
         let segmentAABB = this.segments.map(s => s.aabb);
         this.aabb = AABB.fromAABB(segmentAABB);
-    }
-
-    nearest(pos) {
-        let segmentCount = this.isClosed ? this.nodes.length : this.nodes.length-1;
-        let candidates = [];
-
-        for (let i = 0; i < segmentCount; i++) {
-            let segment = this.segments[i];
-            segment.nearCheck = false;
-            let distSq = segment.aabb.distanceSquared(pos);
-            candidates.push({distSq, segment, index: i});
-        }
-
-        let best = null;
-        let maxDistSq = Number.MAX_VALUE;
-
-        candidates.sort((l, r) => l.distSq - r.distSq);
-        for (let c of candidates) {
-            if (c.distSq >= maxDistSq) continue;
-
-            let res = c.segment.nearest(pos);
-            c.segment.nearCheck = true;
-            if (res.distSq < maxDistSq) {
-                maxDistSq = res.distSq;
-                res.t += c.index;
-                best = res;
-            }
-        }
-
-        return best;
     }
 
     #constrain(t) {
@@ -542,7 +513,7 @@ class ControlNode extends Circle {
     onHandleMove(handle) {
         let other = (handle == this.handlePrev) ? this.handleNext : this.handlePrev;
 
-        other._position = (Vec2.reflect(handle._position, this._position));
+        other._position = (Vec2.mirror(handle._position, this._position));
         this.spline.onNodeUpdated(this);
     }
 

@@ -100,21 +100,27 @@ class Vec2 {
     return this;
   }
 
-  reflectX(scalar=0) {
+  mirrorX(scalar=0) {
       this.x = 2*scalar - this.x;
 
     return this;
   }
 
-  reflectY(scalar=0) {
+  mirrorY(scalar=0) {
       this.y = 2*scalar - this.y;
 
     return this;
   }
 
-  reflect(vector = {}) {
-    this.reflectX(vector.x);
-    this.reflectY(vector.y);
+  mirror(vector = {}) {
+    this.mirrorX(vector.x);
+    this.mirrorY(vector.y);
+
+    return this;
+  }
+
+  reflect(vector) {
+    this.subtract(Vec2.mult(vector, 2 * Vec2.dot(this, vector)));
 
     return this;
   }
@@ -383,12 +389,16 @@ class Vec2 {
     return vectorA.distanceY(vectorB);
   }
 
-  static reflectX (vector, scalar) {
-    return vector.clone().reflectX(scalar);
+  static mirrorX (vector, scalar) {
+    return vector.clone().mirrorX(scalar);
   }
 
-  static reflectY (vector, scalar) {
-    return vector.clone().reflectY(scalar);
+  static mirrorY (vector, scalar) {
+    return vector.clone().mirrorY(scalar);
+  }
+
+  static mirror (vectorA, vectorB) {
+    return vectorA.clone().mirror(vectorB);
   }
 
   static reflect (vectorA, vectorB) {

@@ -79,16 +79,20 @@ class Camera {
     }
 
     arrow(from, to, style) {
-        let offset = style.arrowOffset != undefined ? style.arrowOffset : 0;
+        let startOffset = style.arrowStartOffset != undefined ? style.arrowStartOffset : 0;
+        let endOffset = style.arrowEndOffset != undefined ? style.arrowEndOffset : 0;
         let angle = style.arrowAngle != undefined ? style.arrowAngle : 30;
         let length = style.arrowLength != undefined ? style.arrowLength : 0.3;
         
-        let dir = Vec2.sub(from, to).normalized;
-        to = Vec2.add(to, Vec2.mult(dir, offset));
+        if (Vec2.dist(from, to) - startOffset - endOffset < length) return;
+
+        let dir = Vec2.sub(to, from).normalized;
+        from = Vec2.add(from, Vec2.mult(dir, startOffset))
+        to = Vec2.sub(to, Vec2.mult(dir, endOffset));
 
         let side = Vec2.mult(dir, length);
-        let left = Vec2.add(to, Vec2.rotateByDeg(side, angle));
-        let right = Vec2.add(to, Vec2.rotateByDeg(side, -angle));
+        let left = Vec2.sub(to, Vec2.rotateByDeg(side, angle));
+        let right = Vec2.sub(to, Vec2.rotateByDeg(side, -angle));
 
         this.setStyle(style);
         this.line(from, to);

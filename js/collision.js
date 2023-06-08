@@ -8,14 +8,45 @@ class Collision {
             let res3 = this.collideCorner(line, move, radius);
 
             let best = res1;
-            if (!best || res2 && res2.t < best.t) best = res2;
-            if (!best || res3 && res3.t < best.t) best = res3;
+            if (!best || res2 && res2.objT < best.objT) best = res2;
+            if (!best || res3 && res3.objT < best.objT) best = res3;
             return best;
         }, (best, res) => {
-            return res.t < best.t ? res : best;
+            return res.objT < best.objT ? res : best;
         });
 
-        return traverser.traverse(spline);
+        let hit = traverser.traverse(spline);
+        if (hit) {
+            let resolution = this.resolveCollision(hit, move);
+
+            return {
+                objPos: hit.objPos,
+                // inTranslation: Vec2.sub(to, from),
+                outTranslation: resolution.outTranslation,
+
+                hitPos: hit.hitPos,
+                hitNormal: resolution.hitNormal,
+
+
+                hitCorner: hit.hitCorner,
+                objT: hit.objT
+            }
+        }
+
+        return null;
+        // if (res) {
+        //     let collision = {
+        //         inPos: from, 2 
+        //         objPos: to,  1
+        //         inVel:   2
+        //         outVel    3
+
+        //         hitPos   1
+        //         hitSpline  1
+        //         hitT  1
+        //         hitNormal 3
+        //     }
+        // }
     }
 
     static collideEnd(line, move, radius) {
@@ -46,9 +77,15 @@ class Collision {
 
         let pr4 = Vec2.add(line.from, Vec2.mult(line.dir, t4));
 
+        let t5 = t4 / line.length;
+
         return {
-            t: t3,
-            hitPos: pr4
+            objPos: pr3,
+            objT: t3,
+
+            hitLine: line,
+            hitPos: pr4,
+            hitT: t5 
         }
     }
 
@@ -79,16 +116,22 @@ class Collision {
 
         if (t4 < 0 || t4 > line.length) return null;
 
-        let p4 = Vec2.add(line.from, Vec2.mult(line.dir, t4)); 
+        let p4 = Vec2.add(line.from, Vec2.mult(line.dir, t4));
+
+        let t5 = t4 / line.length;
 
         return {
-            t: t3,
-            hitPos: p4
+            objPos: p3,
+            objT: t3,
+
+            hitLine: line,
+            hitPos: p4,
+            hitT: t5
         }
     }
 
     static collideCorner(line, move, radius) {
-        let helper = (line) => {
+        let helper = (line, reversed) => {
             let v0 = Vec2.sub(line.from, move.from);
             let t0 = Vec2.dot(move.dir, v0);
             let p0 = Vec2.add(move.from, Vec2.mult(move.dir, t0));
@@ -117,9 +160,15 @@ class Collision {
 
                 let p3 = Vec2.add(line.from, Vec2.mult(line.dir, t2));
 
+                let t3 = t2 / line.length;
+
                 return {
+                    objPos: adj1,
+                    objT: t1,
+
+                    hitLine: line,
                     hitPos: p3,
-                    t: t1
+                    hitT: t3
                 }
             }
 
@@ -128,9 +177,16 @@ class Collision {
 
             if (t3 < 0 || t3 > 1) return null;
 
+            let adj2 = Vec2.add(move.from, Vec2.mult(v3, t3));
+
             return {
+                objPos: adj2,
+                objT: t3,
+
+                hitLine: line,
                 hitPos: line.from,
-                t: t3
+                hitT: 0,
+                hitCorner: true
             }
         }
 
@@ -138,6 +194,53 @@ class Collision {
         let res2 = helper(line.reversed);
         if (!res1) return res2;
         if (!res2) return res1;
-        return res1.t < res2.t ? res1 : res2;
+        return res1.objT < res2.objT ? res1 : res2;
+    }
+
+    static resolveCollision(hit, move) {
+        if (!hit) return null;
+
+        // let spline = hit.hitLine.segment.spline;
+        // let t = hit.hitLine.toSplineT(hit.hitT);
+        // let isEndPoint = spline.isEndPoint(t);
+
+        let normal = null;
+        if (hit.hitCorner) {
+            normal = Vec2.sub(hit.objPos, hit.hitPos).normalized;
+        } else {
+            let dir = hit.hitLine.dir;
+            normal = new Vec2(-dir.y, dir.x);
+            if (Vec2.dot(normal, move.dir) > 0) normal.negate();
+        }
+
+        let outDir = Vec2.reflect(move.dir, normal);
+        let outTranslation = Vec2.mult(outDir, move.length * (1 - hit.objT));
+
+        return {
+            hitNormal: normal,
+            outDir: outDir,
+            outTranslation: outTranslation
+        };
+    }
+
+    static resolveEnd(hit, move, spline, t) {
+        let normal = Vec2.sub(hit.objPos, hit.hitPos).normalized;
+        return {
+            hitNormal: normal,
+            outDir: normal
+        };
+    }
+
+    static resolveInner(hit, move, spline, t) {
+        let dir = hit.hitLine.dir;
+        let normal = new Vec2(-dir.y, dir.x);//spline.normal(t);
+        if (Vec2.dot(normal, move.dir) > 0) normal.negate();
+
+        let outDir = Vec2.reflect(move.dir.negated, normal);
+
+        return {
+            hitNormal: normal,
+            outDir: outDir
+        };
     }
 }

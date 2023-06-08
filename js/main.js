@@ -16,7 +16,7 @@ class CustomLine extends GameObject {
         this.radius = 1;
 
         this.fromHandle = new Circle(from, this.radius);
-        this.toHandle = new Circle(to, this.radius, { stroke: '#fff', strokeWidth: 2 });
+        this.toHandle = new Circle(to, this.radius, { stroke: '#fffffff99', strokeWidth: 2 });
 
         this.a = null;
     }
@@ -36,30 +36,48 @@ class CustomLine extends GameObject {
     update(deltaTime) {
         let from = this.getFrom();
         let to = this.getTo();
-        this.a = Collision.collide(spline, from, to, this.radius);
+        
+    }
+
+    renderBounce(from, to) { 
+        let collision = Collision.collide(spline, from, to, this.radius);
+        if (!collision) {
+            // out
+            camera.arrow(from, to, { stroke: '#00ff00', strokeWidth: 2, arrowStartOffset: this.radius, arrowEndOffset: this.radius });
+
+            // out obj
+            camera.circle(to, this.radius, { stroke: '#fff', strokeWidth: 2 });
+        } else {
+            let nextPos = Vec2.add(collision.objPos, collision.outTranslation);
+
+            // in
+            camera.arrow(from, collision.objPos, { stroke: '#00ff00', strokeWidth: 2, arrowStartOffset: this.fromHandle.radius, arrowEndOffset: this.radius });
+
+            // normal
+            camera.arrow(collision.hitPos, Vec2.add(collision.hitPos, collision.hitNormal), { stroke: '#00ff00', strokeWidth: 2 });
+
+            
+            // hit
+            camera.circle(collision.hitPos, 0.2, { fill: '#00ff00' });
+
+            // obj
+            camera.circle(collision.objPos, this.radius, { stroke: '#00ff00', strokeWidth: 2 });
+
+            
+        
+            this.renderBounce(collision.objPos, nextPos);
+        }
     }
 
     render(camera) {
-        camera.arrow(this.getFrom(), this.getTo(), { stroke: '#fff', strokeWidth: 2, arrowOffset: 0.3 });
+        camera.arrow(this.getFrom(), this.getTo(), { stroke: '#ffffff99', strokeWidth: 2, arrowStartOffset: this.fromHandle.radius, arrowEndOffset: this.toHandle.radius });
         this.fromHandle.render(camera);
         this.toHandle.render(camera);
         
         let from = this.getFrom();
         let to = this.getTo();
 
-        let toPos = (t) => {
-            let dir = Vec2.sub(to, from);
-            return Vec2.add(from, Vec2.mult(dir, t));
-        }
-
-        let ren = (p, col) => {
-            if (p) {
-                camera.circle(p.hitPos, 0.2, { fill: col });
-                camera.circle(toPos(p.t), this.radius, { stroke: col, strokeWidth: 2 });
-            }
-        }
-
-        ren(this.a, '#ff0000');
+        this.renderBounce(from, to);
     }
 }
 
